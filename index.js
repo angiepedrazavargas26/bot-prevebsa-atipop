@@ -210,7 +210,6 @@ app.post('/webhook', async (req, res) => {
       }
     }
 
-    // ── Detectar agente en cualquier momento ──────────────────
     const palabrasAgente = ['agente', 'humano', 'persona', 'asesor', 'ayuda urgente'];
     if (palabrasAgente.some(p => mensajeUsuario.toLowerCase().includes(p))) {
       await enviarMensaje(
@@ -257,7 +256,6 @@ app.post('/webhook', async (req, res) => {
     res.sendStatus(500);
   }
 });
-
 app.get('/', (req, res) => res.send('✅ Bot PREVEBSA & ATIPOP funcionando'));
 
 const PORT = process.env.PORT || 3000;
