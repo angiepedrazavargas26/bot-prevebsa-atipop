@@ -8,6 +8,10 @@ app.use(express.json());
 
 const conversaciones = {};
 const estadoUsuario = {};
+const modoHumano = new Set();
+
+// ── Números de agentes ────────────────────────────────────────
+const AGENTES = ['573102614279', '573212135099'];
 
 // ── Videos de tutoriales ──────────────────────────────────────
 const VIDEOS = {
@@ -66,7 +70,17 @@ Soy tu asistente virtual y estoy aquí para ayudarte.
 
 _Responde con el número de tu opción_ 👇`;
 
-// ── Función enviar mensaje de texto ──────────────────────────
+const MENSAJE_AGENTE = `🙏 *Disculpa los inconvenientes causados.*
+
+Entendemos tu situación y queremos ayudarte de la mejor manera.
+
+Un asesor del equipo de soporte técnico de ATI te responderá en breve desde este mismo número. ⏳
+
+_Mientras esperas puedes describir tu problema aquí_ 📝
+
+¡Gracias por tu paciencia! 🤝`;
+
+// ── Función enviar mensaje ────────────────────────────────────
 async function enviarMensaje(numeroUsuario, texto) {
   await axios.post(
     `https://graph.facebook.com/v19.0/${process.env.PHONE_NUMBER_ID}/messages`,
@@ -85,11 +99,32 @@ async function enviarMensaje(numeroUsuario, texto) {
   );
 }
 
+// ── Función notificar agentes ─────────────────────────────────
+async function notificarAgentes(numeroUsuario, ultimoMensaje) {
+  const alerta = `🔔 *NUEVO CASO DE SOPORTE*
+
+👤 Usuario: +${numeroUsuario}
+💬 Mensaje: "${ultimoMensaje}"
+
+Para atender escribe:
+▶️ *#agente ${numeroUsuario}*
+
+Para devolver al bot escribe:
+⏹️ *#bot ${numeroUsuario}*`;
+
+  for (const agente of AGENTES) {
+    try {
+      await enviarMensaje(agente, alerta);
+    } catch (error) {
+      console.error(`❌ Error notificando agente ${agente}:`, error.message);
+    }
+  }
+}
+
 // ── Función enviar video ──────────────────────────────────────
 async function enviarVideo(numeroUsuario, videoKey) {
   const video = VIDEOS[videoKey];
   if (!video) return;
-
   try {
     await axios.post(
       `https://graph.facebook.com/v19.0/${process.env.PHONE_NUMBER_ID}/messages`,
@@ -97,10 +132,7 @@ async function enviarVideo(numeroUsuario, videoKey) {
         messaging_product: 'whatsapp',
         to: numeroUsuario,
         type: 'video',
-        video: {
-          link: video.url,
-          caption: video.titulo
-        }
+        video: { link: video.url, caption: video.titulo }
       },
       {
         headers: {
@@ -112,7 +144,6 @@ async function enviarVideo(numeroUsuario, videoKey) {
     console.log(`✅ Video enviado: ${video.titulo}`);
   } catch (error) {
     console.error('❌ Error enviando video:', error.response?.data);
-    // Si falla el video, enviar enlace directo
     await enviarMensaje(
       numeroUsuario,
       `${video.titulo}\n\n🔗 Ver video: https://drive.google.com/file/d/${video.url.split('id=')[1]}/view`
@@ -136,34 +167,63 @@ app.get('/webhook', (req, res) => {
 // ── Recibir mensajes ──────────────────────────────────────────
 app.post('/webhook', async (req, res) => {
   try {
-    console.log('📨 Body recibido:', JSON.stringify(req.body));
     const entry = req.body.entry?.[0];
     const message = entry?.changes?.[0]?.value?.messages?.[0];
-
     if (!message || message.type !== 'text') return res.sendStatus(200);
 
     const numeroUsuario = message.from;
     const mensajeUsuario = message.text.body.trim();
     console.log(`📩 De ${numeroUsuario}: ${mensajeUsuario}`);
 
-    // Inicializar estado del usuario
+    // ── Comandos de agentes ───────────────────────────────────
+    if (AGENTES.includes(numeroUsuario)) {
+      if (mensajeUsuario.startsWith('#agente ')) {
+        const numCliente = mensajeUsuario.split('#agente ')[1].trim();
+        modoHumano.add(numCliente);
+        await enviarMensaje(numeroUsuario, `✅ Modo agente activado para +${numCliente}\nAhora puedes responderle directamente.\nEscribe *#bot ${numCliente}* cuando termines.`);
+        await enviarMensaje(numCliente, '👨‍💻 Un asesor de ATI está en línea y te atenderá ahora. ¡Hola! ¿En qué puedo ayudarte?');
+        return res.sendStatus(200);
+      }
+      if (mensajeUsuario.startsWith('#bot ')) {
+        const numCliente = mensajeUsuario.split('#bot ')[1].trim();
+        modoHumano.delete(numCliente);
+        await enviarMensaje(numeroUsuario, `✅ Bot reactivado para +${numCliente}`);
+        await enviarMensaje(numCliente, '🤖 El asistente virtual vuelve a estar disponible.\n\nEscribe *menu* si necesitas más ayuda. 😊');
+        return res.sendStatus(200);
+      }
+    }
+
+    // ── Si está en modo humano, ignorar ──────────────────────
+    if (modoHumano.has(numeroUsuario)) {
+      console.log(`👨‍💻 Modo humano activo para ${numeroUsuario}, ignorando...`);
+      return res.sendStatus(200);
+    }
+
+    // ── Inicializar estado ────────────────────────────────────
     if (!estadoUsuario[numeroUsuario]) {
       estadoUsuario[numeroUsuario] = { menu: 'principal', primerMensaje: true };
     }
-
     const estado = estadoUsuario[numeroUsuario];
 
-    // ── Menú principal al primer mensaje ─────────────────────
+    // ── Primer mensaje ────────────────────────────────────────
     if (estado.primerMensaje) {
       estado.primerMensaje = false;
       await enviarMensaje(numeroUsuario, MENU_PRINCIPAL);
       return res.sendStatus(200);
     }
 
-    // ── Detectar "menu" o "inicio" para reiniciar ─────────────
+    // ── Reiniciar con "menu" o "inicio" ───────────────────────
     if (['menu', 'inicio', 'hola', 'start'].includes(mensajeUsuario.toLowerCase())) {
       estado.menu = 'principal';
       await enviarMensaje(numeroUsuario, MENU_PRINCIPAL);
+      return res.sendStatus(200);
+    }
+
+    // ── Detectar solicitud de agente ──────────────────────────
+    const palabrasAgente = ['0', 'agente', 'humano', 'persona', 'asesor', 'ayuda urgente', 'no funciona', 'llevo horas'];
+    if (palabrasAgente.some(p => mensajeUsuario.toLowerCase().includes(p)) || mensajeUsuario === '0') {
+      await enviarMensaje(numeroUsuario, MENSAJE_AGENTE);
+      await notificarAgentes(numeroUsuario, mensajeUsuario);
       return res.sendStatus(200);
     }
 
@@ -176,46 +236,25 @@ app.post('/webhook', async (req, res) => {
         '4': 'atipop_faceid',
         '5': 'atipop_credenciales',
         '6': 'borrar_cache',
-        '7': 'recuperar_contrasena',
-        '0': 'volver'
+        '7': 'recuperar_contrasena'
       };
-
       if (mensajeUsuario === '0') {
         estado.menu = 'principal';
         await enviarMensaje(numeroUsuario, MENU_PRINCIPAL);
         return res.sendStatus(200);
       }
-
       if (tutorialMap[mensajeUsuario]) {
         await enviarMensaje(numeroUsuario, '⏳ Enviando tutorial, un momento...');
         await enviarVideo(numeroUsuario, tutorialMap[mensajeUsuario]);
-        await enviarMensaje(numeroUsuario, '¿Necesitas ayuda con algo más?\n\nEscribe *menu* para volver al inicio 🏠');
+        await enviarMensaje(numeroUsuario, '¿Necesitas ayuda con algo más?\nEscribe *menu* para volver al inicio 🏠');
         return res.sendStatus(200);
       }
     }
 
-    // ── Menú principal opciones ───────────────────────────────
-    if (estado.menu === 'principal') {
-      if (mensajeUsuario === '3') {
-        estado.menu = 'tutoriales';
-        await enviarMensaje(numeroUsuario, MENU_TUTORIALES);
-        return res.sendStatus(200);
-      }
-      if (mensajeUsuario === '0') {
-        await enviarMensaje(
-          numeroUsuario,
-          '🙏 *Disculpa los inconvenientes causados.*\n\nEntendemos tu situación y queremos ayudarte.\n\nUn asesor del equipo de soporte técnico de ATI te responderá en breve desde este mismo número. ⏳\n\n_Mientras esperas puedes describir tu problema aquí_ 📝\n\n¡Gracias por tu paciencia! 🤝'
-        );
-        return res.sendStatus(200);
-      }
-    }
-
-    const palabrasAgente = ['agente', 'humano', 'persona', 'asesor', 'ayuda urgente'];
-    if (palabrasAgente.some(p => mensajeUsuario.toLowerCase().includes(p))) {
-      await enviarMensaje(
-        numeroUsuario,
-        '🙏 *Disculpa los inconvenientes causados.*\n\nEntendemos tu situación y queremos ayudarte.\n\nUn asesor del equipo de soporte técnico de ATI te responderá en breve desde este mismo número. ⏳\n\n_Mientras esperas puedes describir tu problema aquí_ 📝\n\n¡Gracias por tu paciencia! 🤝'
-      );
+    // ── Menú principal opción 3 tutoriales ───────────────────
+    if (mensajeUsuario === '3') {
+      estado.menu = 'tutoriales';
+      await enviarMensaje(numeroUsuario, MENU_TUTORIALES);
       return res.sendStatus(200);
     }
 
@@ -256,6 +295,7 @@ app.post('/webhook', async (req, res) => {
     res.sendStatus(500);
   }
 });
+
 app.get('/', (req, res) => res.send('✅ Bot PREVEBSA & ATIPOP funcionando'));
 
 const PORT = process.env.PORT || 3000;
