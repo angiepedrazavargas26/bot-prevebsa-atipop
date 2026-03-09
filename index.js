@@ -10,39 +10,16 @@ const conversaciones = {};
 const estadoUsuario = {};
 const modoHumano = new Set();
 
-// ── Números de agentes ────────────────────────────────────────
 const AGENTES = ['573102614279', '573212135099'];
 
-// ── Videos de tutoriales ──────────────────────────────────────
 const VIDEOS = {
-  'prevebsa_login': {
-    url: 'https://drive.google.com/uc?export=download&id=1xiZ9qBOp7W8zb9sEfs-3U9v-1aLHUsYQ',
-    titulo: '📹 Tutorial: Login en PREVEBSA'
-  },
-  'prevebsa_inspecciones': {
-    url: 'https://drive.google.com/uc?export=download&id=1d23W40kT64R4zJ01qgYTDlAOfudVA9JB',
-    titulo: '📹 Tutorial: Inspecciones en PREVEBSA'
-  },
-  'prevebsa_plan_diario': {
-    url: 'https://drive.google.com/uc?export=download&id=1r3XjnUIWM8T8lEXptBJKMUmZ09SF8SJ4',
-    titulo: '📹 Tutorial: Plan Diario en PREVEBSA'
-  },
-  'atipop_faceid': {
-    url: 'https://drive.google.com/uc?export=download&id=1wEwGs7Mc8h9gSO22kRy6itN27YiQIq5O',
-    titulo: '📹 Tutorial: Login con FaceID en ATIPOP'
-  },
-  'atipop_credenciales': {
-    url: 'https://drive.google.com/uc?export=download&id=115kK2LCCS43mfD2S9wWJ266zmzdl_LvZ',
-    titulo: '📹 Tutorial: Login con credenciales en ATIPOP'
-  },
-  'borrar_cache': {
-    url: 'https://drive.google.com/uc?export=download&id=1K-F66G0Mu4vHzF9-vrt42QnUoGUrEDLR',
-    titulo: '📹 Tutorial: Cómo borrar caché'
-  },
-  'recuperar_contrasena': {
-    url: 'https://drive.google.com/uc?export=download&id=1-tVGXmw_NqvBqTgX7Wkc0nMURgLXSOrh',
-    titulo: '📹 Tutorial: Recuperar contraseña en ATIPOP'
-  }
+  'prevebsa_login': { url: 'https://drive.google.com/uc?export=download&id=1xiZ9qBOp7W8zb9sEfs-3U9v-1aLHUsYQ', titulo: '📹 Tutorial: Login en PREVEBSA' },
+  'prevebsa_inspecciones': { url: 'https://drive.google.com/uc?export=download&id=1d23W40kT64R4zJ01qgYTDlAOfudVA9JB', titulo: '📹 Tutorial: Inspecciones en PREVEBSA' },
+  'prevebsa_plan_diario': { url: 'https://drive.google.com/uc?export=download&id=1r3XjnUIWM8T8lEXptBJKMUmZ09SF8SJ4', titulo: '📹 Tutorial: Plan Diario en PREVEBSA' },
+  'atipop_faceid': { url: 'https://drive.google.com/uc?export=download&id=1wEwGs7Mc8h9gSO22kRy6itN27YiQIq5O', titulo: '📹 Tutorial: Login con FaceID en ATIPOP' },
+  'atipop_credenciales': { url: 'https://drive.google.com/uc?export=download&id=115kK2LCCS43mfD2S9wWJ266zmzdl_LvZ', titulo: '📹 Tutorial: Login con credenciales en ATIPOP' },
+  'borrar_cache': { url: 'https://drive.google.com/uc?export=download&id=1K-F66G0Mu4vHzF9-vrt42QnUoGUrEDLR', titulo: '📹 Tutorial: Cómo borrar caché' },
+  'recuperar_contrasena': { url: 'https://drive.google.com/uc?export=download&id=1-tVGXmw_NqvBqTgX7Wkc0nMURgLXSOrh', titulo: '📹 Tutorial: Recuperar contraseña en ATIPOP' }
 };
 
 const MENU_TUTORIALES = `📹 *Tutoriales disponibles:*
@@ -70,36 +47,24 @@ Soy tu asistente virtual y estoy aquí para ayudarte.
 
 _Responde con el número de tu opción_ 👇`;
 
-const MENSAJE_AGENTE = `🙏 *Disculpa los inconvenientes causados.*
+const MENSAJE_AGENTE = `🙏 *Disculpa los inconvenientes.*
 
-Entendemos tu situación y queremos ayudarte de la mejor manera.
+Entiendo que esto es frustrante y quiero que lo resolvamos pronto.
 
-Un asesor del equipo de soporte técnico de ATI te responderá en breve desde este mismo número. ⏳
+Un asesor de ATI te va a escribir en breve desde este mismo número. ⏳
 
-_Mientras esperas puedes describir tu problema aquí_ 📝
+Si quieres, cuéntame más detalles del error o toma una captura 📸 — eso le ayudará mucho al asesor.
 
 ¡Gracias por tu paciencia! 🤝`;
 
-// ── Función enviar mensaje ────────────────────────────────────
 async function enviarMensaje(numeroUsuario, texto) {
   await axios.post(
     `https://graph.facebook.com/v19.0/${process.env.PHONE_NUMBER_ID}/messages`,
-    {
-      messaging_product: 'whatsapp',
-      to: numeroUsuario,
-      type: 'text',
-      text: { body: texto }
-    },
-    {
-      headers: {
-        'Authorization': `Bearer ${process.env.WHATSAPP_TOKEN}`,
-        'Content-Type': 'application/json'
-      }
-    }
+    { messaging_product: 'whatsapp', to: numeroUsuario, type: 'text', text: { body: texto } },
+    { headers: { 'Authorization': `Bearer ${process.env.WHATSAPP_TOKEN}`, 'Content-Type': 'application/json' } }
   );
 }
 
-// ── Función notificar agentes ─────────────────────────────────
 async function notificarAgentes(numeroUsuario, ultimoMensaje) {
   const alerta = `🔔 *NUEVO CASO DE SOPORTE*
 
@@ -110,64 +75,37 @@ Para atender escribe:
 ▶️ *#agente ${numeroUsuario}*
 
 Para responderle:
-💬 *#msg ${numeroUsuario} tu mensaje aquí*
+💬 *#msg ${numeroUsuario} tu mensaje*
 
 Para devolver al bot:
 ⏹️ *#bot ${numeroUsuario}*`;
 
   for (const agente of AGENTES) {
-    try {
-      await enviarMensaje(agente, alerta);
-    } catch (error) {
-      console.error(`❌ Error notificando agente ${agente}:`, error.message);
-    }
+    try { await enviarMensaje(agente, alerta); }
+    catch (e) { console.error(`❌ Error notificando agente ${agente}:`, e.message); }
   }
 }
 
-// ── Función enviar video ──────────────────────────────────────
 async function enviarVideo(numeroUsuario, videoKey) {
   const video = VIDEOS[videoKey];
   if (!video) return;
   try {
     await axios.post(
       `https://graph.facebook.com/v19.0/${process.env.PHONE_NUMBER_ID}/messages`,
-      {
-        messaging_product: 'whatsapp',
-        to: numeroUsuario,
-        type: 'video',
-        video: { link: video.url, caption: video.titulo }
-      },
-      {
-        headers: {
-          'Authorization': `Bearer ${process.env.WHATSAPP_TOKEN}`,
-          'Content-Type': 'application/json'
-        }
-      }
+      { messaging_product: 'whatsapp', to: numeroUsuario, type: 'video', video: { link: video.url, caption: video.titulo } },
+      { headers: { 'Authorization': `Bearer ${process.env.WHATSAPP_TOKEN}`, 'Content-Type': 'application/json' } }
     );
-    console.log(`✅ Video enviado: ${video.titulo}`);
   } catch (error) {
-    console.error('❌ Error enviando video:', error.response?.data);
-    await enviarMensaje(
-      numeroUsuario,
-      `${video.titulo}\n\n🔗 Ver video: https://drive.google.com/file/d/${video.url.split('id=')[1]}/view`
-    );
+    await enviarMensaje(numeroUsuario, `${video.titulo}\n\n🔗 Ver video: https://drive.google.com/file/d/${video.url.split('id=')[1]}/view`);
   }
 }
 
-// ── Verificación del webhook ──────────────────────────────────
 app.get('/webhook', (req, res) => {
-  const mode = req.query['hub.mode'];
-  const token = req.query['hub.verify_token'];
-  const challenge = req.query['hub.challenge'];
-  if (mode === 'subscribe' && token === process.env.VERIFY_TOKEN) {
-    console.log('✅ Webhook verificado');
-    res.status(200).send(challenge);
-  } else {
-    res.sendStatus(403);
-  }
+  const { 'hub.mode': mode, 'hub.verify_token': token, 'hub.challenge': challenge } = req.query;
+  if (mode === 'subscribe' && token === process.env.VERIFY_TOKEN) res.status(200).send(challenge);
+  else res.sendStatus(403);
 });
 
-// ── Recibir mensajes ──────────────────────────────────────────
 app.post('/webhook', async (req, res) => {
   try {
     const entry = req.body.entry?.[0];
@@ -180,57 +118,48 @@ app.post('/webhook', async (req, res) => {
 
     // ── Comandos de agentes ───────────────────────────────────
     if (AGENTES.includes(numeroUsuario)) {
-
-      // Activar modo agente: #agente 573163195872
       if (mensajeUsuario.startsWith('#agente ')) {
         const numCliente = mensajeUsuario.split('#agente ')[1].trim();
         modoHumano.add(numCliente);
-        await enviarMensaje(numeroUsuario, `✅ *Modo agente activado* para +${numCliente}\n\nPara responderle escribe:\n💬 *#msg ${numCliente} tu mensaje aquí*\n\nCuando termines escribe:\n⏹️ *#bot ${numCliente}*`);
+        await enviarMensaje(numeroUsuario, `✅ *Modo agente activado* para +${numCliente}\n\nPara responderle:\n💬 *#msg ${numCliente} tu mensaje*\n\nCuando termines:\n⏹️ *#bot ${numCliente}*`);
         await enviarMensaje(numCliente, '👨‍💻 Un asesor de ATI ya está disponible para ayudarte. ¿En qué puedo ayudarte?');
         return res.sendStatus(200);
       }
-
-      // Responder al usuario: #msg 573163195872 Hola, te ayudo con eso
       if (mensajeUsuario.startsWith('#msg ')) {
         const partes = mensajeUsuario.split(' ');
         const numCliente = partes[1].trim();
         const mensajeParaCliente = partes.slice(2).join(' ');
         if (!mensajeParaCliente) {
-          await enviarMensaje(numeroUsuario, '⚠️ Escribe el mensaje después del número. Ej: *#msg 573163195872 Hola, te ayudo*');
+          await enviarMensaje(numeroUsuario, '⚠️ Escribe el mensaje después del número.\nEj: *#msg 573163195872 Hola, te ayudo*');
           return res.sendStatus(200);
         }
         await enviarMensaje(numCliente, `👨‍💻 *Asesor ATI:*\n${mensajeParaCliente}`);
         await enviarMensaje(numeroUsuario, `✅ Mensaje enviado a +${numCliente}`);
         return res.sendStatus(200);
       }
-
-      // Desactivar modo agente: #bot 573163195872
       if (mensajeUsuario.startsWith('#bot ')) {
         const numCliente = mensajeUsuario.split('#bot ')[1].trim();
         modoHumano.delete(numCliente);
+        if (estadoUsuario[numCliente]) estadoUsuario[numCliente].intentos = 0;
         await enviarMensaje(numeroUsuario, `✅ Bot reactivado para +${numCliente}`);
         await enviarMensaje(numCliente, '🤖 El asistente virtual vuelve a estar disponible.\n\nEscribe *menu* si necesitas más ayuda. 😊');
         return res.sendStatus(200);
       }
     }
 
-    // ── Si está en modo humano, reenviar al agente activo ─────
+    // ── Si está en modo humano, reenviar a agentes ────────────
     if (modoHumano.has(numeroUsuario)) {
-      console.log(`👨‍💻 Modo humano activo para ${numeroUsuario}, reenviando a agentes...`);
-      const alerta = `📨 *Mensaje nuevo de +${numeroUsuario}:*\n"${mensajeUsuario}"\n\nResponde con:\n💬 *#msg ${numeroUsuario} tu respuesta*`;
+      const alerta = `📨 *Mensaje de +${numeroUsuario}:*\n"${mensajeUsuario}"\n\nResponde con:\n💬 *#msg ${numeroUsuario} tu respuesta*`;
       for (const agente of AGENTES) {
-        try {
-          await enviarMensaje(agente, alerta);
-        } catch (e) {
-          console.error(`Error notificando agente ${agente}:`, e.message);
-        }
+        try { await enviarMensaje(agente, alerta); }
+        catch (e) { console.error(`Error notificando agente:`, e.message); }
       }
       return res.sendStatus(200);
     }
 
     // ── Inicializar estado ────────────────────────────────────
     if (!estadoUsuario[numeroUsuario]) {
-      estadoUsuario[numeroUsuario] = { menu: 'principal', primerMensaje: true };
+      estadoUsuario[numeroUsuario] = { menu: 'principal', primerMensaje: true, intentos: 0 };
     }
     const estado = estadoUsuario[numeroUsuario];
 
@@ -241,46 +170,40 @@ app.post('/webhook', async (req, res) => {
       return res.sendStatus(200);
     }
 
-    // ── Reiniciar con "menu" o "inicio" ───────────────────────
+    // ── Reiniciar con "menu" o "hola" ─────────────────────────
     if (['menu', 'inicio', 'hola', 'start'].includes(mensajeUsuario.toLowerCase())) {
       estado.menu = 'principal';
+      estado.intentos = 0;
       await enviarMensaje(numeroUsuario, MENU_PRINCIPAL);
       return res.sendStatus(200);
     }
 
-    // ── Detectar solicitud de agente ──────────────────────────
-    const palabrasAgente = ['agente', 'humano', 'persona', 'asesor', 'ayuda urgente', 'llevo horas'];
+    // ── Detectar solicitud directa de agente ──────────────────
+    const palabrasAgente = ['agente', 'humano', 'persona', 'asesor', 'ayuda urgente'];
     if (palabrasAgente.some(p => mensajeUsuario.toLowerCase().includes(p)) || mensajeUsuario === '0') {
       await enviarMensaje(numeroUsuario, MENSAJE_AGENTE);
       await notificarAgentes(numeroUsuario, mensajeUsuario);
+      modoHumano.add(numeroUsuario);
       return res.sendStatus(200);
     }
 
-    // ── Menú de tutoriales ────────────────────────────────────
+    // ── Menú tutoriales ───────────────────────────────────────
     if (estado.menu === 'tutoriales') {
-      const tutorialMap = {
-        '1': 'prevebsa_login',
-        '2': 'prevebsa_plan_diario',
-        '3': 'prevebsa_inspecciones',
-        '4': 'atipop_faceid',
-        '5': 'atipop_credenciales',
-        '6': 'borrar_cache',
-        '7': 'recuperar_contrasena'
-      };
+      const tutorialMap = { '1': 'prevebsa_login', '2': 'prevebsa_plan_diario', '3': 'prevebsa_inspecciones', '4': 'atipop_faceid', '5': 'atipop_credenciales', '6': 'borrar_cache', '7': 'recuperar_contrasena' };
       if (mensajeUsuario === '0') {
         estado.menu = 'principal';
         await enviarMensaje(numeroUsuario, MENU_PRINCIPAL);
         return res.sendStatus(200);
       }
       if (tutorialMap[mensajeUsuario]) {
-        await enviarMensaje(numeroUsuario, '⏳ Enviando tutorial, un momento...');
+        await enviarMensaje(numeroUsuario, '⏳ Enviando tutorial...');
         await enviarVideo(numeroUsuario, tutorialMap[mensajeUsuario]);
-        await enviarMensaje(numeroUsuario, '¿Necesitas ayuda con algo más?\nEscribe *menu* para volver al inicio 🏠');
+        await enviarMensaje(numeroUsuario, '¿Necesitas ayuda con algo más? Escribe *menu* para volver 🏠');
         return res.sendStatus(200);
       }
     }
 
-    // ── Menú principal opción 3 tutoriales ───────────────────
+    // ── Opción 3 tutoriales ───────────────────────────────────
     if (mensajeUsuario === '3') {
       estado.menu = 'tutoriales';
       await enviarMensaje(numeroUsuario, MENU_TUTORIALES);
@@ -298,24 +221,40 @@ app.post('/webhook', async (req, res) => {
       'https://api.groq.com/openai/v1/chat/completions',
       {
         model: 'llama-3.3-70b-versatile',
-        max_tokens: 600,
+        max_tokens: 300,
         messages: [
           { role: 'system', content: SYSTEM_PROMPT },
           ...conversaciones[numeroUsuario]
         ]
       },
-      {
-        headers: {
-          'Authorization': `Bearer ${process.env.GROQ_API_KEY}`,
-          'Content-Type': 'application/json'
-        }
-      }
+      { headers: { 'Authorization': `Bearer ${process.env.GROQ_API_KEY}`, 'Content-Type': 'application/json' } }
     );
 
-    const respuesta = groqResponse.data.choices[0].message.content;
+    let respuesta = groqResponse.data.choices[0].message.content.trim();
     conversaciones[numeroUsuario].push({ role: 'assistant', content: respuesta });
-    console.log(`🤖 Groq: ${respuesta}`);
 
+    // ── Detectar ESCALAR_AGENTE ───────────────────────────────
+    if (respuesta.includes('ESCALAR_AGENTE')) {
+      await enviarMensaje(numeroUsuario, MENSAJE_AGENTE);
+      await notificarAgentes(numeroUsuario, conversaciones[numeroUsuario].slice(-3).map(m => `${m.role}: ${m.content}`).join('\n'));
+      modoHumano.add(numeroUsuario);
+      return res.sendStatus(200);
+    }
+
+    // ── Contar intentos fallidos ──────────────────────────────
+    const frasesFallo = ['no funcionó', 'no funciono', 'sigue igual', 'no sirve', 'no pude', 'todavía no', 'aun no', 'aún no'];
+    if (frasesFallo.some(f => mensajeUsuario.toLowerCase().includes(f))) {
+      estado.intentos = (estado.intentos || 0) + 1;
+      if (estado.intentos >= 2) {
+        await enviarMensaje(numeroUsuario, MENSAJE_AGENTE);
+        await notificarAgentes(numeroUsuario, `Problema sin resolver después de ${estado.intentos} intentos. Último mensaje: "${mensajeUsuario}"`);
+        modoHumano.add(numeroUsuario);
+        estado.intentos = 0;
+        return res.sendStatus(200);
+      }
+    }
+
+    console.log(`🤖 Groq: ${respuesta}`);
     await enviarMensaje(numeroUsuario, respuesta);
     res.sendStatus(200);
 
