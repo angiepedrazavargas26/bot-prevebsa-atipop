@@ -109,7 +109,10 @@ async function notificarAgentes(numeroUsuario, ultimoMensaje) {
 Para atender escribe:
 ▶️ *#agente ${numeroUsuario}*
 
-Para devolver al bot escribe:
+Para responderle:
+💬 *#msg ${numeroUsuario} tu mensaje aquí*
+
+Para devolver al bot:
 ⏹️ *#bot ${numeroUsuario}*`;
 
   for (const agente of AGENTES) {
@@ -177,13 +180,31 @@ app.post('/webhook', async (req, res) => {
 
     // ── Comandos de agentes ───────────────────────────────────
     if (AGENTES.includes(numeroUsuario)) {
+
+      // Activar modo agente: #agente 573163195872
       if (mensajeUsuario.startsWith('#agente ')) {
         const numCliente = mensajeUsuario.split('#agente ')[1].trim();
         modoHumano.add(numCliente);
-        await enviarMensaje(numeroUsuario, `✅ Modo agente activado para +${numCliente}\nAhora puedes responderle directamente.\nEscribe *#bot ${numCliente}* cuando termines.`);
-        await enviarMensaje(numCliente, '👨‍💻 Un asesor de ATI está en línea y te atenderá ahora. ¡Hola! ¿En qué puedo ayudarte?');
+        await enviarMensaje(numeroUsuario, `✅ *Modo agente activado* para +${numCliente}\n\nPara responderle escribe:\n💬 *#msg ${numCliente} tu mensaje aquí*\n\nCuando termines escribe:\n⏹️ *#bot ${numCliente}*`);
+        await enviarMensaje(numCliente, '👨‍💻 Un asesor de ATI ya está disponible para ayudarte. ¿En qué puedo ayudarte?');
         return res.sendStatus(200);
       }
+
+      // Responder al usuario: #msg 573163195872 Hola, te ayudo con eso
+      if (mensajeUsuario.startsWith('#msg ')) {
+        const partes = mensajeUsuario.split(' ');
+        const numCliente = partes[1].trim();
+        const mensajeParaCliente = partes.slice(2).join(' ');
+        if (!mensajeParaCliente) {
+          await enviarMensaje(numeroUsuario, '⚠️ Escribe el mensaje después del número. Ej: *#msg 573163195872 Hola, te ayudo*');
+          return res.sendStatus(200);
+        }
+        await enviarMensaje(numCliente, `👨‍💻 *Asesor ATI:*\n${mensajeParaCliente}`);
+        await enviarMensaje(numeroUsuario, `✅ Mensaje enviado a +${numCliente}`);
+        return res.sendStatus(200);
+      }
+
+      // Desactivar modo agente: #bot 573163195872
       if (mensajeUsuario.startsWith('#bot ')) {
         const numCliente = mensajeUsuario.split('#bot ')[1].trim();
         modoHumano.delete(numCliente);
@@ -193,9 +214,17 @@ app.post('/webhook', async (req, res) => {
       }
     }
 
-    // ── Si está en modo humano, ignorar ──────────────────────
+    // ── Si está en modo humano, reenviar al agente activo ─────
     if (modoHumano.has(numeroUsuario)) {
-      console.log(`👨‍💻 Modo humano activo para ${numeroUsuario}, ignorando...`);
+      console.log(`👨‍💻 Modo humano activo para ${numeroUsuario}, reenviando a agentes...`);
+      const alerta = `📨 *Mensaje nuevo de +${numeroUsuario}:*\n"${mensajeUsuario}"\n\nResponde con:\n💬 *#msg ${numeroUsuario} tu respuesta*`;
+      for (const agente of AGENTES) {
+        try {
+          await enviarMensaje(agente, alerta);
+        } catch (e) {
+          console.error(`Error notificando agente ${agente}:`, e.message);
+        }
+      }
       return res.sendStatus(200);
     }
 
@@ -220,7 +249,7 @@ app.post('/webhook', async (req, res) => {
     }
 
     // ── Detectar solicitud de agente ──────────────────────────
-    const palabrasAgente = ['0', 'agente', 'humano', 'persona', 'asesor', 'ayuda urgente', 'no funciona', 'llevo horas'];
+    const palabrasAgente = ['agente', 'humano', 'persona', 'asesor', 'ayuda urgente', 'llevo horas'];
     if (palabrasAgente.some(p => mensajeUsuario.toLowerCase().includes(p)) || mensajeUsuario === '0') {
       await enviarMensaje(numeroUsuario, MENSAJE_AGENTE);
       await notificarAgentes(numeroUsuario, mensajeUsuario);
