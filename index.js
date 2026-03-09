@@ -221,7 +221,7 @@ app.post('/webhook', async (req, res) => {
       'https://api.groq.com/openai/v1/chat/completions',
       {
         model: 'llama-3.3-70b-versatile',
-        max_tokens: 300,
+        max_tokens: 600,
         messages: [
           { role: 'system', content: SYSTEM_PROMPT },
           ...conversaciones[numeroUsuario]
