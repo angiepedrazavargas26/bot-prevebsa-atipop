@@ -225,6 +225,10 @@ app.post('/webhook', async (req, res) => {
       return res.sendStatus(200);
     }
 
+    // ── Detectar nombre del usuario ─────────────────────────
+    const matchNombre = mensajeUsuario.match(/(?:me llamo|soy|mi nombre es)\s+([A-Za-zÁÉÍÓÚáéíóúñÑ]+)/i);
+    if (matchNombre) estado.nombre = matchNombre[1];
+
     // ── Respuesta con IA (Groq) ───────────────────────────────
     if (!conversaciones[numeroUsuario]) conversaciones[numeroUsuario] = [];
     conversaciones[numeroUsuario].push({ role: 'user', content: mensajeUsuario });
@@ -238,7 +242,7 @@ app.post('/webhook', async (req, res) => {
         model: 'llama-3.3-70b-versatile',
         max_tokens: 600,
         messages: [
-          { role: 'system', content: SYSTEM_PROMPT },
+          { role: 'system', content: SYSTEM_PROMPT + (estado.nombre ? `\nEl nombre del usuario es: ${estado.nombre}` : '') },
           ...conversaciones[numeroUsuario]
         ]
       },
