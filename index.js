@@ -8,7 +8,8 @@ app.use(express.json());
 
 const conversaciones = {};
 const estadoUsuario = {};
-const modoHumano = new Set();
+const modoHumano = new Set();   // clientes en modo humano
+const agenteActivo = new Map(); // agente -> cliente que está atendiendo
 
 const AGENTES = ['573102614279', '573212135099'];
 
@@ -74,11 +75,10 @@ async function notificarAgentes(numeroUsuario, ultimoMensaje) {
 Para atender escribe:
 ▶️ *#agente ${numeroUsuario}*
 
-Para responderle:
-💬 *#msg ${numeroUsuario} tu mensaje*
+_(Una vez actives, escribe normalmente y tus mensajes llegarán al usuario)_
 
-Para devolver al bot:
-⏹️ *#bot ${numeroUsuario}*`;
+Para terminar y devolver al bot:
+⏹️ *#bot*`;
 
   for (const agente of AGENTES) {
     try { await enviarMensaje(agente, alerta); }
@@ -118,41 +118,56 @@ app.post('/webhook', async (req, res) => {
 
     // ── Comandos de agentes ───────────────────────────────────
     if (AGENTES.includes(numeroUsuario)) {
+
+      // Activar modo agente: #agente 573163195872
       if (mensajeUsuario.startsWith('#agente ')) {
         const numCliente = mensajeUsuario.split('#agente ')[1].trim();
         modoHumano.add(numCliente);
-        await enviarMensaje(numeroUsuario, `✅ *Modo agente activado* para +${numCliente}\n\nPara responderle:\n💬 *#msg ${numCliente} tu mensaje*\n\nCuando termines:\n⏹️ *#bot ${numCliente}*`);
+        agenteActivo.set(numeroUsuario, numCliente);
+        await enviarMensaje(numeroUsuario, `✅ *Modo agente activado* para +${numCliente}\n\nAhora escribe normalmente y tus mensajes le llegarán directamente al usuario 💬\n\nCuando termines escribe:\n⏹️ *#bot*`);
         await enviarMensaje(numCliente, '👨‍💻 Un asesor de ATI ya está disponible para ayudarte. ¿En qué puedo ayudarte?');
         return res.sendStatus(200);
       }
-      if (mensajeUsuario.startsWith('#msg ')) {
-        const partes = mensajeUsuario.split(' ');
-        const numCliente = partes[1].trim();
-        const mensajeParaCliente = partes.slice(2).join(' ');
-        if (!mensajeParaCliente) {
-          await enviarMensaje(numeroUsuario, '⚠️ Escribe el mensaje después del número.\nEj: *#msg 573163195872 Hola, te ayudo*');
-          return res.sendStatus(200);
+
+      // Terminar modo agente: #bot
+      if (mensajeUsuario === '#bot') {
+        const numCliente = agenteActivo.get(numeroUsuario);
+        if (numCliente) {
+          modoHumano.delete(numCliente);
+          agenteActivo.delete(numeroUsuario);
+          if (estadoUsuario[numCliente]) estadoUsuario[numCliente].intentos = 0;
+          await enviarMensaje(numeroUsuario, `✅ Caso cerrado. Bot reactivado para +${numCliente}`);
+          await enviarMensaje(numCliente, '🤖 El asistente virtual vuelve a estar disponible.\n\nEscribe *menu* si necesitas más ayuda. 😊');
+        } else {
+          await enviarMensaje(numeroUsuario, '⚠️ No tienes ningún caso activo en este momento.');
         }
-        await enviarMensaje(numCliente, `👨‍💻 *Asesor ATI:*\n${mensajeParaCliente}`);
-        await enviarMensaje(numeroUsuario, `✅ Mensaje enviado a +${numCliente}`);
         return res.sendStatus(200);
       }
-      if (mensajeUsuario.startsWith('#bot ')) {
-        const numCliente = mensajeUsuario.split('#bot ')[1].trim();
-        modoHumano.delete(numCliente);
-        if (estadoUsuario[numCliente]) estadoUsuario[numCliente].intentos = 0;
-        await enviarMensaje(numeroUsuario, `✅ Bot reactivado para +${numCliente}`);
-        await enviarMensaje(numCliente, '🤖 El asistente virtual vuelve a estar disponible.\n\nEscribe *menu* si necesitas más ayuda. 😊');
+
+      // Si el agente tiene un cliente activo → reenviar mensaje directamente
+      if (agenteActivo.has(numeroUsuario)) {
+        const numCliente = agenteActivo.get(numeroUsuario);
+        await enviarMensaje(numCliente, `👨‍💻 *Asesor ATI:*\n${mensajeUsuario}`);
         return res.sendStatus(200);
       }
     }
 
-    // ── Si está en modo humano, reenviar a agentes ────────────
+    // ── Si está en modo humano, reenviar a agente activo ──────
     if (modoHumano.has(numeroUsuario)) {
-      const alerta = `📨 *Mensaje de +${numeroUsuario}:*\n"${mensajeUsuario}"\n\nResponde con:\n💬 *#msg ${numeroUsuario} tu respuesta*`;
-      for (const agente of AGENTES) {
-        try { await enviarMensaje(agente, alerta); }
-        catch (e) { console.error(`Error notificando agente:`, e.message); }
+      console.log(`👨‍💻 Modo humano para ${numeroUsuario}, reenviando...`);
+      // Buscar agente que está atendiendo este cliente
+      let agenteAsignado = null;
+      for (const [agente, cliente] of agenteActivo.entries()) {
+        if (cliente === numeroUsuario) { agenteAsignado = agente; break; }
+      }
+      if (agenteAsignado) {
+        await enviarMensaje(agenteAsignado, `📨 *Usuario +${numeroUsuario}:*\n"${mensajeUsuario}"`);
+      } else {
+        // Notificar a todos si no hay agente asignado aún
+        for (const agente of AGENTES) {
+          try { await enviarMensaje(agente, `📨 *Mensaje de +${numeroUsuario}:*\n"${mensajeUsuario}"\n\nEscribe *#agente ${numeroUsuario}* para atenderlo`); }
+          catch (e) { console.error(e.message); }
+        }
       }
       return res.sendStatus(200);
     }
@@ -247,7 +262,7 @@ app.post('/webhook', async (req, res) => {
       estado.intentos = (estado.intentos || 0) + 1;
       if (estado.intentos >= 2) {
         await enviarMensaje(numeroUsuario, MENSAJE_AGENTE);
-        await notificarAgentes(numeroUsuario, `Problema sin resolver después de ${estado.intentos} intentos. Último mensaje: "${mensajeUsuario}"`);
+        await notificarAgentes(numeroUsuario, `Problema sin resolver. Último mensaje: "${mensajeUsuario}"`);
         modoHumano.add(numeroUsuario);
         estado.intentos = 0;
         return res.sendStatus(200);
