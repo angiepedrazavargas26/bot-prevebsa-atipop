@@ -1,289 +1,262 @@
-require('dotenv').config();
-const express = require('express');
-const axios = require('axios');
-const SYSTEM_PROMPT = require('./systemPrompt');
-
+const express = require("express");
 const app = express();
 app.use(express.json());
 
-const conversaciones = {};
-const estadoUsuario = {};
-const modoHumano = new Set();   // clientes en modo humano
-const agenteActivo = new Map(); // agente -> cliente que está atendiendo
+// ============================================================
+// KNOWLEDGE BASE — Base de conocimiento ATI
+// ============================================================
+const knowledgeBase = [
+{
+id: "A1", app: "ATIPOP", modulo: "Acceso",
+keywords: ["faceid", "face id", "cara", "biometrico", "no reconoce", "no me deja entrar", "foto", "atiface"],
+respuesta: "El problema con FaceID tiene solución fácil 😊\n\n1️⃣ Ve a *Mi Cuenta → ATIFace* y verifica que tu foto esté registrada.\n2️⃣ Si no está, toma una nueva foto siguiendo el proceso de ATIFace.\n3️⃣ Si ya estaba pero sigue fallando, elimina el registro y vuelve a hacerlo.\n\n💡 Regístrate con buena iluminación y fondo neutro.\n\n¿Esto resolvió tu problema?"
+},
+{
+id: "A2", app: "ATIPOP", modulo: "Formularios",
+keywords: ["sin dato", "formulario bloqueado", "formulario lleno", "datos corruptos", "no puedo editar", "aparece respondido"],
+respuesta: "Ese error es de caché corrupta, se soluciona así:\n\n1️⃣ Ve a *Configuración del teléfono → Aplicaciones → ATIPOP → Almacenamiento*\n2️⃣ Toca *Borrar Datos* y *Borrar Caché*\n3️⃣ Vuelve a iniciar sesión y abre el formulario de nuevo\n\n⚠️ No cierres la app mientras el formulario está cargando.\n\n¿Quedó bien?"
+},
+{
+id: "A3", app: "ATIPOP", modulo: "Sincronización",
+keywords: ["no carga", "desactualizado", "informacion vieja", "no sincroniza", "sincronizacion", "datos viejos", "no aparece"],
+respuesta: "El problema es de sincronización. Prueba esto:\n\n1️⃣ Presiona el botón *Sincronizar* en el menú lateral\n2️⃣ Asegúrate de tener conexión a internet estable\n3️⃣ Si no carga, cierra sesión, vuelve a entrar y sincroniza de nuevo\n\n💡 Sincroniza al inicio de cada jornada.\n\n¿Ya cargó la información?"
+},
+{
+id: "A4", app: "ATIPOP", modulo: "Recibos",
+keywords: ["recibos", "recibo", "nomina", "pago", "no carga recibos", "tarda", "lento"],
+respuesta: "El módulo de Recibos puede ser lento — es un problema conocido. Prueba:\n\n1️⃣ Espera al menos *30 segundos* antes de intentar de nuevo\n2️⃣ Funciona mejor con WiFi\n3️⃣ Cierra y vuelve a abrir la app\n\n¿Pudo cargar?"
+},
+{
+id: "A5", app: "ATIPOP", modulo: "Avisos",
+keywords: ["ver todos", "avisos", "boton no funciona", "se cierra", "notificaciones avisos"],
+respuesta: "Ese es un error conocido en el botón *Ver todos*. Mientras se corrige:\n\n1️⃣ Entra al módulo de *Avisos* directamente desde el menú principal\n2️⃣ Evita presionar *Ver todos* repetidamente\n\nYa está reportado al equipo técnico. ¿Pudiste ver tus avisos?"
+},
+{
+id: "A6", app: "ATIPOP", modulo: "Certificaciones",
+keywords: ["certificacion", "certificado", "no se envia", "correo", "email", "no llega", "enviar certificacion"],
+respuesta: "El envío automático de certificaciones tiene una falla conocida. Por ahora:\n\n1️⃣ Descarga la certificación manualmente desde el módulo correspondiente\n2️⃣ Envíala por correo de forma manual adjuntando el archivo\n\nYa está reportado al equipo técnico. ¿Pudiste descargarla?"
+},
+{
+id: "A7", app: "ATIPOP", modulo: "GPS",
+keywords: ["gps", "alerta", "riesgo", "emergencia", "no llega alerta", "ubicacion", "no vibra", "no notifica"],
+respuesta: "Las alertas GPS pueden fallar si no están configuradas:\n\n1️⃣ Ve a *Configuración* y ajusta la *distancia de alertas GPS*\n2️⃣ Activa las *alertas por vibración*\n3️⃣ Verifica que ATIPOP tenga permisos de ubicación en tu teléfono\n\n💡 Configura las alertas al inicio de cada turno.\n\n¿Quedaron activadas?"
+},
+{
+id: "A8", app: "ATIPOP", modulo: "Acceso",
+keywords: ["olvide contrasena", "no recuerdo clave", "contrasena incorrecta", "no puedo entrar", "acceso", "login", "usuario", "clave", "sga"],
+respuesta: "Para recuperar tu contraseña de ATIPOP:\n\n1️⃣ En la pantalla de inicio usa *Recuperar contraseña*\n2️⃣ Ingresa tu correo registrado\n\n⚠️ La contraseña está vinculada al sistema *SGA*. Si el correo no funciona, contacta a *Talento Humano*.\n\n¿Pudiste ingresar?"
+},
+{
+id: "P1", app: "PREVEBSA", modulo: "Plan Diario",
+keywords: ["plan anterior", "plan de ayer", "plan viejo", "plan diario", "dia anterior", "cache plan"],
+respuesta: "La app quedó con datos del día anterior. Solución:\n\n1️⃣ Ve a *Configuración del teléfono → Aplicaciones → Prevebsa → Almacenamiento → Borrar caché*\n2️⃣ Reinicia la app y vuelve a ingresar\n\n💡 Cierra sesión al finalizar la jornada para evitar esto.\n\n¿Ya aparece el plan de hoy?"
+}
+];
 
-const AGENTES = ['573102614279', '573212135099'];
+// ============================================================
+// SESSION STORE
+// ============================================================
 
-const VIDEOS = {
-  'prevebsa_login': { url: 'https://drive.google.com/uc?export=download&id=1xiZ9qBOp7W8zb9sEfs-3U9v-1aLHUsYQ', titulo: '📹 Tutorial: Login en PREVEBSA' },
-  'prevebsa_inspecciones': { url: 'https://drive.google.com/uc?export=download&id=1d23W40kT64R4zJ01qgYTDlAOfudVA9JB', titulo: '📹 Tutorial: Inspecciones en PREVEBSA' },
-  'prevebsa_plan_diario': { url: 'https://drive.google.com/uc?export=download&id=1r3XjnUIWM8T8lEXptBJKMUmZ09SF8SJ4', titulo: '📹 Tutorial: Plan Diario en PREVEBSA' },
-  'atipop_faceid': { url: 'https://drive.google.com/uc?export=download&id=1wEwGs7Mc8h9gSO22kRy6itN27YiQIq5O', titulo: '📹 Tutorial: Login con FaceID en ATIPOP' },
-  'atipop_credenciales': { url: 'https://drive.google.com/uc?export=download&id=115kK2LCCS43mfD2S9wWJ266zmzdl_LvZ', titulo: '📹 Tutorial: Login con credenciales en ATIPOP' },
-  'borrar_cache': { url: 'https://drive.google.com/uc?export=download&id=1K-F66G0Mu4vHzF9-vrt42QnUoGUrEDLR', titulo: '📹 Tutorial: Cómo borrar caché' },
-  'recuperar_contrasena': { url: 'https://drive.google.com/uc?export=download&id=1-tVGXmw_NqvBqTgX7Wkc0nMURgLXSOrh', titulo: '📹 Tutorial: Recuperar contraseña en ATIPOP' }
-};
+const sessions = {};
 
-const MENU_TUTORIALES = `📹 *Tutoriales disponibles:*
-
-1️⃣ 🔐 Login en PREVEBSA
-2️⃣ 📋 Plan Diario en PREVEBSA
-3️⃣ 🔍 Inspecciones en PREVEBSA
-4️⃣ 😃 Login con FaceID en ATIPOP
-5️⃣ 🔑 Login con credenciales en ATIPOP
-6️⃣ 🗑️ Cómo borrar caché
-7️⃣ 🔒 Recuperar contraseña ATIPOP
-0️⃣ 🔙 Volver al menú principal
-
-_Responde con el número del tutorial_ 👇`;
-
-const MENU_PRINCIPAL = `👋 ¡Hola! Bienvenido al soporte técnico de *ATI* 🛠️
-
-Soy tu asistente virtual y estoy aquí para ayudarte.
-¿Con cuál aplicativo necesitas ayuda?
-
-1️⃣ *PREVEBSA* — App de seguridad y salud en el trabajo
-2️⃣ *ATIPOP* — App de operación de subestaciones eléctricas
-3️⃣ 📹 *TUTORIALES* — Ver videos de uso
-0️⃣ 🙋 *AGENTE* — Hablar con un asesor humano
-
-_Responde con el número de tu opción_ 👇`;
-
-const MENSAJE_AGENTE = `🙏 *Disculpa los inconvenientes.*
-
-Entiendo que esto es frustrante y quiero que lo resolvamos pronto.
-
-Un asesor de ATI te va a escribir en breve desde este mismo número. ⏳
-
-Si quieres, cuéntame más detalles del error o toma una captura 📸 — eso le ayudará mucho al asesor.
-
-¡Gracias por tu paciencia! 🤝`;
-
-async function enviarMensaje(numeroUsuario, texto) {
-  await axios.post(
-    `https://graph.facebook.com/v19.0/${process.env.PHONE_NUMBER_ID}/messages`,
-    { messaging_product: 'whatsapp', to: numeroUsuario, type: 'text', text: { body: texto } },
-    { headers: { 'Authorization': `Bearer ${process.env.WHATSAPP_TOKEN}`, 'Content-Type': 'application/json' } }
-  );
+function getSession(phone) {
+if (!sessions[phone]) {
+sessions[phone] = { history: [], attempts: 0 };
+}
+return sessions[phone];
 }
 
-async function notificarAgentes(numeroUsuario, ultimoMensaje) {
-  const alerta = `🔔 *NUEVO CASO DE SOPORTE*
+// ============================================================
+// SEARCH
+// ============================================================
 
-👤 Usuario: +${numeroUsuario}
-💬 Mensaje: "${ultimoMensaje}"
+function searchKnowledge(text) {
+const lower = text.toLowerCase();
 
-Para atender escribe:
-▶️ *#agente ${numeroUsuario}*
-
-_(Una vez actives, escribe normalmente y tus mensajes llegarán al usuario)_
-
-Para terminar y devolver al bot:
-⏹️ *#bot*`;
-
-  for (const agente of AGENTES) {
-    try { await enviarMensaje(agente, alerta); }
-    catch (e) { console.error(`❌ Error notificando agente ${agente}:`, e.message); }
-  }
+for (const entry of knowledgeBase) {
+for (const keyword of entry.keywords) {
+if (lower.includes(keyword)) {
+return entry;
+}
+}
 }
 
-async function enviarVideo(numeroUsuario, videoKey) {
-  const video = VIDEOS[videoKey];
-  if (!video) return;
-  try {
-    await axios.post(
-      `https://graph.facebook.com/v19.0/${process.env.PHONE_NUMBER_ID}/messages`,
-      { messaging_product: 'whatsapp', to: numeroUsuario, type: 'video', video: { link: video.url, caption: video.titulo } },
-      { headers: { 'Authorization': `Bearer ${process.env.WHATSAPP_TOKEN}`, 'Content-Type': 'application/json' } }
-    );
-  } catch (error) {
-    await enviarMensaje(numeroUsuario, `${video.titulo}\n\n🔗 Ver video: https://drive.google.com/file/d/${video.url.split('id=')[1]}/view`);
-  }
+return null;
 }
 
-app.get('/webhook', (req, res) => {
-  const { 'hub.mode': mode, 'hub.verify_token': token, 'hub.challenge': challenge } = req.query;
-  if (mode === 'subscribe' && token === process.env.VERIFY_TOKEN) res.status(200).send(challenge);
-  else res.sendStatus(403);
+// ============================================================
+// CLAUDE API
+// ============================================================
+
+async function askClaude(userMessage, history) {
+
+const systemPrompt = `Eres el asistente de soporte técnico de ATI para los aplicativos ATIPOP y PREVEBSA.
+Tu objetivo es ayudar a los técnicos de campo a resolver problemas con la app de forma rápida y clara.
+
+REGLAS:
+
+- Responde siempre en español
+- Da soluciones paso a paso
+- Siempre pregunta si el problema quedó resuelto
+- Usa emojis moderadamente
+
+CONTEXTO:
+ATIPOP gestiona subestaciones eléctricas
+PREVEBSA gestiona seguridad y salud en el trabajo`;
+
+const messages = [
+...history.map(h => ({ role: h.role, content: h.content })),
+{ role: "user", content: userMessage }
+];
+
+const response = await fetch("https://api.anthropic.com/v1/messages", {
+method: "POST",
+headers: {
+"Content-Type": "application/json",
+"x-api-key": process.env.CLAUDE_API_KEY,
+"anthropic-version": "2023-06-01"
+},
+body: JSON.stringify({
+model: "claude-haiku-4-5-20251001",
+max_tokens: 1024,
+system: systemPrompt,
+messages
+})
 });
 
-app.post('/webhook', async (req, res) => {
-  try {
-    const entry = req.body.entry?.[0];
-    const message = entry?.changes?.[0]?.value?.messages?.[0];
-    if (!message || message.type !== 'text') return res.sendStatus(200);
+const data = await response.json();
+return data.content[0].text;
+}
 
-    const numeroUsuario = message.from;
-    const mensajeUsuario = message.text.body.trim();
-    console.log(`📩 De ${numeroUsuario}: ${mensajeUsuario}`);
+// ============================================================
+// WHATSAPP
+// ============================================================
 
-    // ── Comandos de agentes ───────────────────────────────────
-    if (AGENTES.includes(numeroUsuario)) {
+async function sendWhatsApp(to, message) {
 
-      // Activar modo agente: #agente 573163195872
-      if (mensajeUsuario.startsWith('#agente ')) {
-        const numCliente = mensajeUsuario.split('#agente ')[1].trim();
-        modoHumano.add(numCliente);
-        agenteActivo.set(numeroUsuario, numCliente);
-        await enviarMensaje(numeroUsuario, `✅ *Modo agente activado* para +${numCliente}\n\nAhora escribe normalmente y tus mensajes le llegarán directamente al usuario 💬\n\nCuando termines escribe:\n⏹️ *#bot*`);
-        await enviarMensaje(numCliente, '👨‍💻 Un asesor de ATI ya está disponible para ayudarte. ¿En qué puedo ayudarte?');
-        return res.sendStatus(200);
-      }
+const response = await fetch(
+`https://graph.facebook.com/v18.0/${process.env.WHATSAPP_PHONE_ID}/messages`,
+{
+method: "POST",
+headers: {
+"Authorization": `Bearer ${process.env.WHATSAPP_TOKEN}`,
+"Content-Type": "application/json"
+},
+body: JSON.stringify({
+messaging_product: "whatsapp",
+to,
+type: "text",
+text: { body: message }
+})
+}
+);
 
-      // Terminar modo agente: #bot
-      if (mensajeUsuario === '#bot') {
-        const numCliente = agenteActivo.get(numeroUsuario);
-        if (numCliente) {
-          modoHumano.delete(numCliente);
-          agenteActivo.delete(numeroUsuario);
-          if (estadoUsuario[numCliente]) estadoUsuario[numCliente].intentos = 0;
-          await enviarMensaje(numeroUsuario, `✅ Caso cerrado. Bot reactivado para +${numCliente}`);
-          await enviarMensaje(numCliente, '🤖 El asistente virtual vuelve a estar disponible.\n\nEscribe *menu* si necesitas más ayuda. 😊');
-        } else {
-          await enviarMensaje(numeroUsuario, '⚠️ No tienes ningún caso activo en este momento.');
-        }
-        return res.sendStatus(200);
-      }
+return response.json();
+}
 
-      // Si el agente tiene un cliente activo → reenviar mensaje directamente
-      if (agenteActivo.has(numeroUsuario)) {
-        const numCliente = agenteActivo.get(numeroUsuario);
-        await enviarMensaje(numCliente, `👨‍💻 *Asesor ATI:*\n${mensajeUsuario}`);
-        return res.sendStatus(200);
-      }
-    }
+// ============================================================
+// WEBHOOK VERIFY
+// ============================================================
 
-    // ── Si está en modo humano, reenviar a agente activo ──────
-    if (modoHumano.has(numeroUsuario)) {
-      console.log(`👨‍💻 Modo humano para ${numeroUsuario}, reenviando...`);
-      // Buscar agente que está atendiendo este cliente
-      let agenteAsignado = null;
-      for (const [agente, cliente] of agenteActivo.entries()) {
-        if (cliente === numeroUsuario) { agenteAsignado = agente; break; }
-      }
-      if (agenteAsignado) {
-        await enviarMensaje(agenteAsignado, `📨 *Usuario +${numeroUsuario}:*\n"${mensajeUsuario}"`);
-      } else {
-        // Notificar a todos si no hay agente asignado aún
-        for (const agente of AGENTES) {
-          try { await enviarMensaje(agente, `📨 *Mensaje de +${numeroUsuario}:*\n"${mensajeUsuario}"\n\nEscribe *#agente ${numeroUsuario}* para atenderlo`); }
-          catch (e) { console.error(e.message); }
-        }
-      }
-      return res.sendStatus(200);
-    }
+app.get("/webhook", (req, res) => {
 
-    // ── Inicializar estado ────────────────────────────────────
-    if (!estadoUsuario[numeroUsuario]) {
-      estadoUsuario[numeroUsuario] = { menu: 'principal', primerMensaje: true, intentos: 0 };
-    }
-    const estado = estadoUsuario[numeroUsuario];
+const mode = req.query["hub.mode"];
+const token = req.query["hub.verify_token"];
+const challenge = req.query["hub.challenge"];
 
-    // ── Primer mensaje ────────────────────────────────────────
-    if (estado.primerMensaje) {
-      estado.primerMensaje = false;
-      await enviarMensaje(numeroUsuario, MENU_PRINCIPAL);
-      return res.sendStatus(200);
-    }
+if (mode === "subscribe" && token === process.env.VERIFY_TOKEN) {
+console.log("Webhook verificado");
+res.status(200).send(challenge);
+} else {
+res.sendStatus(403);
+}
 
-    // ── Reiniciar con "menu" o "hola" ─────────────────────────
-    if (['menu', 'inicio', 'hola', 'start'].includes(mensajeUsuario.toLowerCase())) {
-      estado.menu = 'principal';
-      estado.intentos = 0;
-      await enviarMensaje(numeroUsuario, MENU_PRINCIPAL);
-      return res.sendStatus(200);
-    }
-
-    // ── Detectar solicitud directa de agente ──────────────────
-    const palabrasAgente = ['agente', 'humano', 'persona', 'asesor', 'ayuda urgente'];
-    if (palabrasAgente.some(p => mensajeUsuario.toLowerCase().includes(p)) || mensajeUsuario === '0') {
-      await enviarMensaje(numeroUsuario, MENSAJE_AGENTE);
-      await notificarAgentes(numeroUsuario, mensajeUsuario);
-      modoHumano.add(numeroUsuario);
-      return res.sendStatus(200);
-    }
-
-    // ── Menú tutoriales ───────────────────────────────────────
-    if (estado.menu === 'tutoriales') {
-      const tutorialMap = { '1': 'prevebsa_login', '2': 'prevebsa_plan_diario', '3': 'prevebsa_inspecciones', '4': 'atipop_faceid', '5': 'atipop_credenciales', '6': 'borrar_cache', '7': 'recuperar_contrasena' };
-      if (mensajeUsuario === '0') {
-        estado.menu = 'principal';
-        await enviarMensaje(numeroUsuario, MENU_PRINCIPAL);
-        return res.sendStatus(200);
-      }
-      if (tutorialMap[mensajeUsuario]) {
-        await enviarMensaje(numeroUsuario, '⏳ Enviando tutorial...');
-        await enviarVideo(numeroUsuario, tutorialMap[mensajeUsuario]);
-        await enviarMensaje(numeroUsuario, '¿Necesitas ayuda con algo más? Escribe *menu* para volver 🏠');
-        return res.sendStatus(200);
-      }
-    }
-
-    // ── Opción 3 tutoriales ───────────────────────────────────
-    if (mensajeUsuario === '3') {
-      estado.menu = 'tutoriales';
-      await enviarMensaje(numeroUsuario, MENU_TUTORIALES);
-      return res.sendStatus(200);
-    }
-
-    // ── Detectar nombre del usuario ─────────────────────────
-    const matchNombre = mensajeUsuario.match(/(?:me llamo|soy|mi nombre es)\s+([A-Za-zÁÉÍÓÚáéíóúñÑ]+)/i);
-    if (matchNombre) estado.nombre = matchNombre[1];
-
-    // ── Respuesta con IA (Groq) ───────────────────────────────
-    if (!conversaciones[numeroUsuario]) conversaciones[numeroUsuario] = [];
-    conversaciones[numeroUsuario].push({ role: 'user', content: mensajeUsuario });
-    if (conversaciones[numeroUsuario].length > 10) {
-      conversaciones[numeroUsuario] = conversaciones[numeroUsuario].slice(-10);
-    }
-
-    const groqResponse = await axios.post(
-      'https://api.groq.com/openai/v1/chat/completions',
-      {
-        model: 'llama-3.3-70b-versatile',
-        max_tokens: 600,
-        messages: [
-          { role: 'system', content: SYSTEM_PROMPT + (estado.nombre ? `\nEl nombre del usuario es: ${estado.nombre}` : '') },
-          ...conversaciones[numeroUsuario]
-        ]
-      },
-      { headers: { 'Authorization': `Bearer ${process.env.GROQ_API_KEY}`, 'Content-Type': 'application/json' } }
-    );
-
-    let respuesta = groqResponse.data.choices[0].message.content.trim();
-    conversaciones[numeroUsuario].push({ role: 'assistant', content: respuesta });
-
-    // ── Detectar ESCALAR_AGENTE ───────────────────────────────
-    if (respuesta.includes('ESCALAR_AGENTE')) {
-      await enviarMensaje(numeroUsuario, MENSAJE_AGENTE);
-      await notificarAgentes(numeroUsuario, conversaciones[numeroUsuario].slice(-3).map(m => `${m.role}: ${m.content}`).join('\n'));
-      modoHumano.add(numeroUsuario);
-      return res.sendStatus(200);
-    }
-
-    // ── Contar intentos fallidos ──────────────────────────────
-    const frasesFallo = ['no funcionó', 'no funciono', 'sigue igual', 'no sirve', 'no pude', 'todavía no', 'aun no', 'aún no'];
-    if (frasesFallo.some(f => mensajeUsuario.toLowerCase().includes(f))) {
-      estado.intentos = (estado.intentos || 0) + 1;
-      if (estado.intentos >= 2) {
-        await enviarMensaje(numeroUsuario, MENSAJE_AGENTE);
-        await notificarAgentes(numeroUsuario, `Problema sin resolver. Último mensaje: "${mensajeUsuario}"`);
-        modoHumano.add(numeroUsuario);
-        estado.intentos = 0;
-        return res.sendStatus(200);
-      }
-    }
-
-    console.log(`🤖 Groq: ${respuesta}`);
-    await enviarMensaje(numeroUsuario, respuesta);
-    res.sendStatus(200);
-
-  } catch (error) {
-    console.error('❌ Error:', JSON.stringify(error.response?.data) || error.message);
-    res.sendStatus(500);
-  }
 });
 
-app.get('/', (req, res) => res.send('✅ Bot PREVEBSA & ATIPOP funcionando'));
+// ============================================================
+// WEBHOOK RECEIVE
+// ============================================================
+
+app.post("/webhook", async (req, res) => {
+
+res.sendStatus(200);
+
+try {
+
+const entry = req.body.entry?.[0];
+const change = entry?.changes?.[0];
+const message = change?.value?.messages?.[0];
+
+if (!message || message.type !== "text") return;
+
+const phone = message.from;
+const text = message.text.body;
+const session = getSession(phone);
+
+console.log(`Mensaje de ${phone}: ${text}`);
+
+const match = searchKnowledge(text);
+
+if (match) {
+
+session.attempts = 0;
+
+session.history.push({ role: "user", content: text });
+session.history.push({ role: "assistant", content: match.respuesta });
+
+await sendWhatsApp(phone, match.respuesta);
+
+} else {
+
+session.attempts += 1;
+
+if (session.attempts > 2) {
+
+const escalation = `Lo siento, no pude resolver tu problema automáticamente 🙏
+
+Voy a conectarte con un asesor de soporte técnico de ATI.
+
+_Un agente te responderá en breve._ ⏳`;
+
+await sendWhatsApp(phone, escalation);
+
+sessions[phone] = { history: [], attempts: 0 };
+
+} else {
+
+const reply = await askClaude(text, session.history);
+
+session.history.push({ role: "user", content: text });
+session.history.push({ role: "assistant", content: reply });
+
+if (session.history.length > 10)
+session.history = session.history.slice(-10);
+
+await sendWhatsApp(phone, reply);
+
+}
+
+}
+
+} catch (error) {
+console.error("Error:", error);
+}
+
+});
+
+// ============================================================
+// HEALTH CHECK
+// ============================================================
+
+app.get("/", (req, res) => {
+res.json({
+status: "ATI Bot funcionando ✅",
+timestamp: new Date().toISOString()
+});
+});
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`🚀 Bot corriendo en puerto ${PORT}`));
+
+app.listen(PORT, () =>
+console.log(`ATI Bot corriendo en puerto ${PORT}`)
+);
