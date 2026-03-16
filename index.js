@@ -211,8 +211,12 @@ ${nombre ? `- El nombre del usuario es ${nombre}` : ''}
 REGLAS IMPORTANTES:
 - Responda SIEMPRE en español
 - Si el usuario describe un problema, PRIMERO pregunte qué error exacto le aparece antes de asumir la causa
-- NO cambie de módulo sin que el usuario lo indique
-- Mantenga el contexto de la conversación — si estamos hablando de Lecturas, siga en Lecturas
+- NUNCA cambie de módulo ni de aplicativo sin que el usuario lo indique explícitamente
+- Si el contexto dice que estamos en PREVEBSA, SOLO hable de PREVEBSA
+- Si el contexto dice que estamos en Lecturas, SOLO hable de Lecturas — NO mencione FaceID
+- Si el contexto dice que estamos en Inspecciones ATIPOP, SOLO hable de Inspecciones ATIPOP — NO mencione FaceID
+- Si el contexto dice que estamos en Supervisiones, SOLO hable de Supervisiones
+- FaceID es ÚNICAMENTE del módulo de Login/Mi Cuenta de ATIPOP — NO lo mencione en otros módulos
 - Al final de cada respuesta, haga UNA sola pregunta de verificación
 - Si no conoce la respuesta con certeza, indíquelo con honestidad y ofrezca escalar con un asesor
 
@@ -344,7 +348,7 @@ const CONTEXTOS = {
   'prevebsa_5': 'El usuario tiene problemas con Planes de Acción en PREVEBSA.',
   'prevebsa_6': 'El usuario tiene problemas con el Módulo Proceso en PREVEBSA.',
   'prevebsa_7': 'El usuario tiene problemas con Configuración o Notificaciones en PREVEBSA.',
-  'prevebsa_8': 'El usuario tiene un problema general con PREVEBSA que no encaja en las categorías anteriores.',
+  'prevebsa_8': 'El usuario tiene un problema con la app PREVEBSA (app de seguridad y salud en el trabajo - HSE). El problema NO encaja en las categorías de login, planificaciones, inspecciones, observaciones, planes de acción, módulo proceso ni configuración. Mantenga el contexto de PREVEBSA en toda la conversación. NO hable de ATIPOP ni de FaceID a menos que el usuario lo mencione explícitamente.',
   'atipop_1': 'El usuario tiene problemas con el inicio de sesión en ATIPOP. Puede ser con correo/contraseña (sistema SGA) o con FaceID (Mi Cuenta → ATIFace). Son dos flujos completamente distintos — preguntar cuál específicamente.',
   'atipop_2': 'El usuario tiene problemas con Mi Cuenta o Documentos en ATIPOP.',
   'atipop_3': 'El usuario tiene problemas con el módulo Reporte en Ruta en ATIPOP.',
@@ -352,7 +356,7 @@ const CONTEXTOS = {
   'atipop_5': 'El usuario tiene problemas con Lecturas o Equipos en ATIPOP. Lecturas incluye medidores, QR y equipos. NO confundir con FaceID.',
   'atipop_6': 'El usuario tiene problemas con la Sincronización en ATIPOP.',
   'atipop_7': 'El usuario tiene problemas con Configuración, GPS o Alertas en ATIPOP.',
-  'atipop_8': 'El usuario tiene un problema general con ATIPOP que no encaja en las categorías anteriores.'
+  'atipop_8': 'El usuario tiene un problema con la app ATIPOP (app de gestión de subestaciones eléctricas). El problema NO encaja en las categorías de login, mi cuenta, reporte en ruta, supervisiones, lecturas, sincronización ni configuración. Mantenga el contexto de ATIPOP en toda la conversación. NO hable de PREVEBSA a menos que el usuario lo mencione explícitamente.'
 };
 
 async function enviarVideo(to, key) {
@@ -505,7 +509,7 @@ app.post('/webhook', async (req, res) => {
           'prevebsa_5': '¿Cuál es el inconveniente con los planes de acción? Cuénteme qué ocurrió.',
           'prevebsa_6': '¿Cuál es el inconveniente con el Módulo Proceso? Cuénteme qué ocurrió.',
           'prevebsa_7': '¿Cuál es el inconveniente con la configuración o notificaciones? Cuénteme qué ocurrió.',
-          'prevebsa_8': 'Por favor cuénteme con detalle qué inconveniente tiene con PREVEBSA.'
+          'prevebsa_8': 'Entendido, con gusto le ayudo con PREVEBSA. Por favor cuénteme con detalle qué inconveniente está presentando — entre más detalles me dé, mejor podré orientarle.'
         };
         await sendWhatsApp(phone, preguntasInicio[session.contexto]);
         return;
@@ -525,7 +529,7 @@ app.post('/webhook', async (req, res) => {
           'atipop_5': '¿El inconveniente es con *Lecturas* (medidores, equipos) o con *Equipos* (historial, devolutivos)?',
           'atipop_6': '¿Cuál es el inconveniente con la sincronización? ¿No sincroniza, se queda pegada, o muestra información desactualizada?',
           'atipop_7': '¿El inconveniente es con la *configuración general*, las *alertas GPS*, o algo más?',
-          'atipop_8': 'Por favor cuénteme con detalle qué inconveniente tiene con ATIPOP.'
+          'atipop_8': 'Entendido, con gusto le ayudo con ATIPOP. Por favor cuénteme con detalle qué inconveniente está presentando — entre más detalles me dé, mejor podré orientarle.'
         };
         await sendWhatsApp(phone, preguntasInicio[session.contexto]);
         return;
