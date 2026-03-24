@@ -143,7 +143,7 @@ function searchKnowledge(text, appFiltro) {
  return null;
 }
 
-const OPCION_ASESOR = '\n\n_Escriba *0* en cualquier momento para hablar con un asesor_';
+const OPCION_ASESOR = '\n\n_Escriba *asesor* en cualquier momento para hablar con una persona_';
 
 async function sendWhatsApp(to, message) {
  const response = await fetch(
@@ -209,43 +209,60 @@ PREVEBSA — Módulos: Planificaciones (2 formatos: Con/Sin Energía), Inspeccio
 
 const MENU_PRINCIPAL = `✦ Bienvenido al soporte técnico de *ATI*
 
-
 ¿Con cuál aplicativo necesita ayuda?
 
-1️⃣ *PREVEBSA* — Seguridad y salud en el trabajo
+1️⃣ *PREVEBSA*
+   Seguridad y salud en el trabajo (HSE)
 2️⃣ *ATIPOP*
+   Gestión de subestaciones eléctricas
 3️⃣ *TUTORIALES*
-0️⃣ *ASESOR*
+   Videos de uso paso a paso
+*#️⃣ ASESOR*
+   Escriba *asesor* para hablar con una persona
 
 _Responda con el número de su opción_ 👇`;
 
 const MENU_PREVEBSA = `📱 *PREVEBSA* — ¿En qué le ayudo?
 
-1️⃣ Login / Contraseña
-2️⃣ Planificaciones
-3️⃣ Inspecciones preoperacionales
-4️⃣ Observaciones
-5️⃣ Planes de Acción
-6️⃣ Módulo Proceso
-7️⃣ Configuración / Notificaciones
-8️⃣ Otro problema
-0️⃣ Hablar con un asesor
+1️⃣ *Login / Contraseña*
+   Problemas para ingresar o recuperar clave
+2️⃣ *Planificaciones*
+   Crear o gestionar el plan diario
+3️⃣ *Inspecciones preoperacionales*
+   Vehículo, moto o equipos críticos
+4️⃣ *Observaciones*
+   Registrar hallazgos en campo
+5️⃣ *Planes de Acción*
+   Seguimiento a hallazgos y correctivos
+6️⃣ *Módulo Proceso*
+   Seguimiento de envíos e imágenes
+7️⃣ *Configuración / Notificaciones*
+   Modo offline, segundo plano, alertas
+8️⃣ *Otro problema*
+   Inconveniente no listado
 
-_Indique el número y cuénteme qué ocurrió_ 👇`;
+_Indique el número_ · Escriba *asesor* para hablar con una persona 👇`;
 
 const MENU_ATIPOP = `📱 *ATIPOP* — ¿En qué le ayudo?
 
-1️⃣ Inicio de sesión (correo / FaceID)
-2️⃣ Mi Cuenta / Documentos
-3️⃣ Reporte en Ruta
-4️⃣ Supervisiones e Inspecciones
-5️⃣ Lecturas / Equipos
-6️⃣ Sincronización
-7️⃣ Configuración / GPS / Alertas
-8️⃣ Otro problema
-0️⃣ Hablar con un asesor
+1️⃣ *Inicio de sesión*
+   Problemas con correo, contraseña o FaceID
+2️⃣ *Mi Cuenta / Documentos*
+   Perfil, carnet, nómina, vehículo
+3️⃣ *Reporte en Ruta*
+   Crear o gestionar reportes diarios
+4️⃣ *Supervisiones e Inspecciones*
+   Registrar supervisiones o inspecciones
+5️⃣ *Lecturas / Equipos*
+   Medidores, valores, equipos asignados
+6️⃣ *Sincronización*
+   Datos desactualizados o sin cargar
+7️⃣ *Configuración / GPS / Alertas*
+   Distancia GPS, vibración, segundo plano
+8️⃣ *Otro problema*
+   Inconveniente no listado
 
-_Indique el número y cuénteme qué ocurrió_ 👇`;
+_Indique el número_ · Escriba *asesor* para hablar con una persona 👇`;
 
 const MENSAJE_AGENTE = `Disculpe los inconvenientes.
 
@@ -376,9 +393,25 @@ app.post('/webhook', async (req, res) => {
  try {
  const entry = req.body.entry?.[0];
  const message = entry?.changes?.[0]?.value?.messages?.[0];
- if (!message || message.type !== 'text') return;
+    if (!message) return;
+    const tipo = message.type;
+    const phone = message.from;
 
- const phone = message.from;
+    // ── Media en modo humano → reenviar al asesor ─────────────
+    if (modoHumano.has(phone) && tipo !== 'text') {
+      let agenteAsignado = null;
+      for (const [agente, cliente] of agenteActivo.entries()) {
+        if (cliente === phone) { agenteAsignado = agente; break; }
+      }
+      const destinos = agenteAsignado ? [agenteAsignado] : AGENTES;
+      for (const dest of destinos) {
+        try { await reenviarMediaAlAsesor(dest, phone, message); } catch(e) { console.error(e.message); }
+      }
+      return;
+    }
+
+    if (tipo !== 'text') return;
+
  const text = message.text.body.trim();
  console.log(`📩 De ${phone}: ${text}`);
 
@@ -388,7 +421,7 @@ app.post('/webhook', async (req, res) => {
  const cliente = text.split('#agente ')[1].trim();
  modoHumano.add(cliente);
  agenteActivo.set(phone, cliente);
- await sendWhatsApp(phone, `· *Modo asesor activado* para +${cliente}\n\nEscriba normalmente — sus mensajes llegarán al usuario.\n\nPara finalizar: *#bot*`);
+ await sendWhatsApp(phone, `✅ *Modo asesor activado*\n\n👤 Atendiendo a: +${cliente}\n\nDesde ahora escriba normalmente aquí y sus mensajes le llegarán directamente al usuario.\n\n⚠️ Cuando termine la atención escriba: *#bot* para devolver el control al asistente virtual.`);
  await sendWhatsApp(cliente, 'Un asesor de ATI está disponible. ¿En qué le puedo ayudar?');
  return;
  }
@@ -405,10 +438,12 @@ app.post('/webhook', async (req, res) => {
  }
  return;
  }
- if (agenteActivo.has(phone)) {
- await sendWhatsApp(agenteActivo.get(phone), `*Asesor ATI:*\n${text}`);
- return;
- }
+    if (agenteActivo.has(phone)) {
+      const clienteActivo = agenteActivo.get(phone);
+      await sendWhatsApp(clienteActivo, `*Asesor ATI:*\n${text}`);
+      console.log(`Asesor ${phone} → Cliente ${clienteActivo}: ${text}`);
+      return;
+    }
  }
 
  // ── Cliente en modo humano ────────────────────────────────
@@ -449,13 +484,7 @@ app.post('/webhook', async (req, res) => {
  return;
  }
 
- // ── Opción 0 — asesor en cualquier momento ────────────────
- if (text === '0') {
- await sendWhatsApp(phone, MENSAJE_AGENTE);
- await notificarAgentes(phone, `Solicitud de asesor desde el módulo: ${session.contexto || 'menú principal'}`);
- modoHumano.add(phone);
- return;
- }
+
 
  // ── Navegación menú principal ─────────────────────────────
  if (!session.menu || session.menu === 'principal') {
