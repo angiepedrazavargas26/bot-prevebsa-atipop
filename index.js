@@ -143,7 +143,7 @@ function searchKnowledge(text, appFiltro) {
  return null;
 }
 
-const OPCION_ASESOR = '\n\n_Escriba *asesor* en cualquier momento para hablar con una persona_';
+const OPCION_ASESOR = '\n\n_Escriba *asesor* o *0* para hablar con una persona_';
 
 async function sendWhatsApp(to, message) {
  const response = await fetch(
@@ -214,7 +214,7 @@ const MENU_PRINCIPAL = `✦ Bienvenido al soporte técnico de *ATI*
 1️⃣ *PREVEBSA*
    Seguridad y salud en el trabajo (HSE)
 2️⃣ *ATIPOP*
-   Gestión de subestaciones eléctricas
+   Operación, montaje y mantenimiento eléctrico
 3️⃣ *TUTORIALES*
    Videos de uso paso a paso
 *#️⃣ ASESOR*
@@ -486,8 +486,44 @@ app.post('/webhook', async (req, res) => {
 
 
 
- // ── Navegación menú principal ─────────────────────────────
- if (!session.menu || session.menu === 'principal') {
+    // ── Tutoriales con submenú (ANTES de asesor para que 0=volver funcione) ──
+    if (session.menu === 'tutoriales') {
+      if (text === '0') { session.menu = null; session.app = null; await sendWhatsApp(phone, MENU_PRINCIPAL); return; }
+      if (text === '1') { session.menu = 'tutoriales_prevebsa'; await sendWhatsApp(phone, MENU_TUTORIALES_PREVEBSA); return; }
+      if (text === '2') { session.menu = 'tutoriales_atipop'; await sendWhatsApp(phone, MENU_TUTORIALES_ATIPOP); return; }
+    }
+    if (session.menu === 'tutoriales_prevebsa') {
+      if (text === '0') { session.menu = 'tutoriales'; await sendWhatsApp(phone, MENU_TUTORIALES); return; }
+      const video = VIDEOS_PREVEBSA[text];
+      if (video) {
+        await sendWhatsApp(phone, 'Enviando tutorial...');
+        await enviarVideo(phone, video);
+        await sendWhatsApp(phone, '¿Necesita ayuda con algo más? Escriba *menu* para volver.' + OPCION_ASESOR);
+        return;
+      }
+    }
+    if (session.menu === 'tutoriales_atipop') {
+      if (text === '0') { session.menu = 'tutoriales'; await sendWhatsApp(phone, MENU_TUTORIALES); return; }
+      const video = VIDEOS_ATIPOP[text];
+      if (video) {
+        await sendWhatsApp(phone, 'Enviando tutorial...');
+        await enviarVideo(phone, video);
+        await sendWhatsApp(phone, '¿Necesita ayuda con algo más? Escriba *menu* para volver.' + OPCION_ASESOR);
+        return;
+      }
+    }
+
+    // ── Asesor: palabra clave O número 0 ─────────────────────
+    const palabrasAsesor = ['asesor', 'agente', 'humano', 'persona real', 'ayuda urgente'];
+    if (text === '0' || palabrasAsesor.some(p => textLower.includes(p))) {
+      await sendWhatsApp(phone, MENSAJE_AGENTE);
+      await notificarAgentes(phone, `Solicitud de asesor. Módulo: ${session.contexto || 'menú principal'}. Mensaje: "${text}"`);
+      modoHumano.add(phone);
+      return;
+    }
+
+    // ── Navegación menú principal ─────────────────────────────
+    if (!session.menu || session.menu === 'principal') {
  if (text === '1' || textLower.includes('prevebsa')) {
  session.menu = 'prevebsa'; session.app = 'PREVEBSA'; session.contexto = null;
  await sendWhatsApp(phone, MENU_PREVEBSA);
@@ -546,35 +582,6 @@ app.post('/webhook', async (req, res) => {
  }
 
 
-
-    // ── Tutoriales con submenú ────────────────────────────────
-    if (session.menu === 'tutoriales') {
-      if (text === '0') { session.menu = null; session.app = null; await sendWhatsApp(phone, MENU_PRINCIPAL); return; }
-      if (text === '1') { session.menu = 'tutoriales_prevebsa'; await sendWhatsApp(phone, MENU_TUTORIALES_PREVEBSA); return; }
-      if (text === '2') { session.menu = 'tutoriales_atipop'; await sendWhatsApp(phone, MENU_TUTORIALES_ATIPOP); return; }
-    }
-
-    if (session.menu === 'tutoriales_prevebsa') {
-      if (text === '0') { session.menu = 'tutoriales'; await sendWhatsApp(phone, MENU_TUTORIALES); return; }
-      const video = VIDEOS_PREVEBSA[text];
-      if (video) {
-        await sendWhatsApp(phone, 'Enviando tutorial...');
-        await enviarVideo(phone, video);
-        await sendWhatsApp(phone, '¿Necesita ayuda con algo más? Escriba *menu* para volver.' + OPCION_ASESOR);
-        return;
-      }
-    }
-
-    if (session.menu === 'tutoriales_atipop') {
-      if (text === '0') { session.menu = 'tutoriales'; await sendWhatsApp(phone, MENU_TUTORIALES); return; }
-      const video = VIDEOS_ATIPOP[text];
-      if (video) {
-        await sendWhatsApp(phone, 'Enviando tutorial...');
-        await enviarVideo(phone, video);
-        await sendWhatsApp(phone, '¿Necesita ayuda con algo más? Escriba *menu* para volver.' + OPCION_ASESOR);
-        return;
-      }
-    }
 
     // ── Knowledge base (filtrada por app activa) ──────────────
     const match = searchKnowledge(text, session.app);
