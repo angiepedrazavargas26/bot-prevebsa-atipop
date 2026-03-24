@@ -143,7 +143,7 @@ function searchKnowledge(text, appFiltro) {
  return null;
 }
 
-const OPCION_ASESOR = '\n\n_Escriba *asesor* o *0* para hablar con una persona_';
+const OPCION_ASESOR = '\n\n_Escriba *#* para hablar con un asesor_';
 
 async function sendWhatsApp(to, message) {
  const response = await fetch(
@@ -220,7 +220,7 @@ const MENU_PRINCIPAL = `✦ Bienvenido al soporte técnico de *ATI*
 *#️⃣ ASESOR*
    Escriba *asesor* para hablar con una persona
 
-_Responda con el número de su opción_ 👇`;
+_Responda con el número_ · Escriba *#* para hablar con un asesor 👇`;
 
 const MENU_PREVEBSA = `📱 *PREVEBSA* — ¿En qué le ayudo?
 
@@ -241,7 +241,7 @@ const MENU_PREVEBSA = `📱 *PREVEBSA* — ¿En qué le ayudo?
 8️⃣ *Otro problema*
    Inconveniente no listado
 
-_Indique el número_ · Escriba *asesor* para hablar con una persona 👇`;
+_Indique el número_ · Escriba *#* para hablar con un asesor 👇`;
 
 const MENU_ATIPOP = `📱 *ATIPOP* — ¿En qué le ayudo?
 
@@ -262,7 +262,7 @@ const MENU_ATIPOP = `📱 *ATIPOP* — ¿En qué le ayudo?
 8️⃣ *Otro problema*
    Inconveniente no listado
 
-_Indique el número_ · Escriba *asesor* para hablar con una persona 👇`;
+_Indique el número_ · Escriba *#* para hablar con un asesor 👇`;
 
 const MENSAJE_AGENTE = `Disculpe los inconvenientes.
 
@@ -342,39 +342,58 @@ async function reenviarMediaAlAsesor(agentePhone, phone, message) {
   const media = message[tipo];
   if (!media || !media.id) return;
   const tipoLabel = { image: 'imagen', audio: 'audio', video: 'video', document: 'documento', sticker: 'sticker' }[tipo] || tipo;
+
   try {
+    // 1. Obtener URL del archivo desde Meta
     const metaRes = await fetch(`https://graph.facebook.com/v19.0/${media.id}`, {
       headers: { 'Authorization': `Bearer ${process.env.WHATSAPP_TOKEN}` }
     });
     const metaData = await metaRes.json();
+    if (!metaData.url) throw new Error('No se obtuvo URL del media');
+
+    // 2. Descargar el archivo
     const fileRes = await fetch(metaData.url, {
       headers: { 'Authorization': `Bearer ${process.env.WHATSAPP_TOKEN}` }
     });
-    const arrayBuf = await fileRes.arrayBuffer();
-    const buffer = Buffer.from(arrayBuf);
-    const { FormData, Blob } = require('node:buffer') || {};
-    const formData = new (require('form-data'))();
+    const buffer = Buffer.from(await fileRes.arrayBuffer());
+
+    // 3. Subir a WhatsApp Business
+    const FormData = require('form-data');
+    const formData = new FormData();
     formData.append('messaging_product', 'whatsapp');
     formData.append('type', media.mime_type || 'application/octet-stream');
-    formData.append('file', buffer, { filename: media.filename || `archivo.${tipo}`, contentType: media.mime_type });
+    formData.append('file', buffer, {
+      filename: media.filename || `archivo_${Date.now()}.${tipo}`,
+      contentType: media.mime_type || 'application/octet-stream'
+    });
+
     const uploadRes = await fetch(`https://graph.facebook.com/v19.0/${process.env.PHONE_NUMBER_ID}/media`, {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${process.env.WHATSAPP_TOKEN}`, ...formData.getHeaders() },
       body: formData
     });
     const uploadData = await uploadRes.json();
+    if (!uploadData.id) throw new Error('No se pudo subir el archivo: ' + JSON.stringify(uploadData));
+
+    // 4. Enviar al asesor
     const body = { messaging_product: 'whatsapp', to: agentePhone, type: tipo };
     body[tipo] = { id: uploadData.id };
-    if (media.caption && tipo !== 'audio') body[tipo].caption = `› Usuario +${phone}: ${media.caption}`;
+    if (media.caption && tipo !== 'audio') {
+      body[tipo].caption = `Usuario +${phone}: ${media.caption}`;
+    }
+
     await fetch(`https://graph.facebook.com/v19.0/${process.env.PHONE_NUMBER_ID}/messages`, {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${process.env.WHATSAPP_TOKEN}`, 'Content-Type': 'application/json' },
       body: JSON.stringify(body)
     });
-    await sendWhatsApp(agentePhone, `› *Usuario +${phone}* envió un ${tipoLabel}.`);
+
+    // 5. Texto indicando de quién viene
+    await sendWhatsApp(agentePhone, `*Usuario +${phone}* envió el ${tipoLabel} anterior.`);
+
   } catch (e) {
     console.error('Error reenviando media:', e.message);
-    await sendWhatsApp(agentePhone, `› *Usuario +${phone}* envió un ${tipoLabel} (no se pudo reenviar automáticamente).`);
+    await sendWhatsApp(agentePhone, `*Usuario +${phone}* envió un ${tipoLabel} (no se pudo reenviar automáticamente).`);
   }
 }
 
@@ -397,15 +416,17 @@ app.post('/webhook', async (req, res) => {
     const tipo = message.type;
     const phone = message.from;
 
-    // ── Media en modo humano → reenviar al asesor ─────────────
+    // ── Media en modo humano → avisar al asesor ─────────────
     if (modoHumano.has(phone) && tipo !== 'text') {
+      const tipoLabel = { image: 'una imagen', audio: 'un audio', video: 'un video', document: 'un documento', sticker: 'un sticker' }[tipo] || 'un archivo';
       let agenteAsignado = null;
       for (const [agente, cliente] of agenteActivo.entries()) {
         if (cliente === phone) { agenteAsignado = agente; break; }
       }
       const destinos = agenteAsignado ? [agenteAsignado] : AGENTES;
       for (const dest of destinos) {
-        try { await reenviarMediaAlAsesor(dest, phone, message); } catch(e) { console.error(e.message); }
+        try { await sendWhatsApp(dest, `*Usuario +${phone}* envió ${tipoLabel}.
+Revise el chat de WhatsApp del usuario para verlo.`); } catch(e) {}
       }
       return;
     }
@@ -421,7 +442,7 @@ app.post('/webhook', async (req, res) => {
  const cliente = text.split('#agente ')[1].trim();
  modoHumano.add(cliente);
  agenteActivo.set(phone, cliente);
- await sendWhatsApp(phone, `✅ *Modo asesor activado*\n\n👤 Atendiendo a: +${cliente}\n\nDesde ahora escriba normalmente aquí y sus mensajes le llegarán directamente al usuario.\n\n⚠️ Cuando termine la atención escriba: *#bot* para devolver el control al asistente virtual.`);
+ await sendWhatsApp(phone, `*Asesor activo* — Atendiendo a +${cliente}\n\nEscriba normalmente y sus mensajes llegarán al usuario.\nPara terminar escriba: *#bot*`);
  await sendWhatsApp(cliente, 'Un asesor de ATI está disponible. ¿En qué le puedo ayudar?');
  return;
  }
@@ -434,8 +455,8 @@ app.post('/webhook', async (req, res) => {
  await sendWhatsApp(phone, `· Caso finalizado. Bot reactivado para +${cliente}`);
  await sendWhatsApp(cliente, 'El asistente virtual está disponible nuevamente.\n\nEscriba *menu* si necesita más ayuda.');
  } else {
- await sendWhatsApp(phone, '› No tiene ningún caso activo.');
- }
+      await sendWhatsApp(phone, 'No tiene ningún caso activo en este momento.');
+    }
  return;
  }
     if (agenteActivo.has(phone)) {
@@ -452,13 +473,17 @@ app.post('/webhook', async (req, res) => {
  for (const [agente, cliente] of agenteActivo.entries()) {
  if (cliente === phone) { agenteAsignado = agente; break; }
  }
- if (agenteAsignado) {
- await sendWhatsApp(agenteAsignado, `› *Usuario +${phone}:*\n"${text}"`);
- } else {
- for (const agente of AGENTES) {
- try { await sendWhatsApp(agente, `› *+${phone}:* "${text}"\n\nEscriba *#agente ${phone}* para atenderlo`); } catch (e) {}
- }
- }
+    if (agenteAsignado) {
+      await sendWhatsApp(agenteAsignado, `*Usuario +${phone}:*
+${text}`);
+    } else {
+      for (const agente of AGENTES) {
+        try { await sendWhatsApp(agente, `*Usuario +${phone}:*
+${text}
+
+_Escriba *#agente ${phone}* para atender_`); } catch (e) {}
+      }
+    }
  return;
  }
 
@@ -513,9 +538,9 @@ app.post('/webhook', async (req, res) => {
       }
     }
 
-    // ── Asesor: palabra clave O número 0 ─────────────────────
-    const palabrasAsesor = ['asesor', 'agente', 'humano', 'persona real', 'ayuda urgente'];
-    if (text === '0' || palabrasAsesor.some(p => textLower.includes(p))) {
+    // ── Asesor: # o palabra clave ────────────────────────────
+    const palabrasAsesor = ['asesor', 'agente', 'humano', 'hablar con alguien'];
+    if (text === '#' || palabrasAsesor.some(p => textLower.includes(p))) {
       await sendWhatsApp(phone, MENSAJE_AGENTE);
       await notificarAgentes(phone, `Solicitud de asesor. Módulo: ${session.contexto || 'menú principal'}. Mensaje: "${text}"`);
       modoHumano.add(phone);
@@ -541,8 +566,22 @@ app.post('/webhook', async (req, res) => {
  }
  }
 
- // ── Submenú PREVEBSA ──────────────────────────────────────
- if (session.menu === 'prevebsa' && !session.contexto) {
+    // ── 0 = volver en cualquier submenú ──────────────────────
+    if (text === '0') {
+      if (session.menu && session.menu !== 'principal') {
+        // Volver un nivel
+        if (session.contexto) { session.contexto = null; }
+        else { session.menu = null; session.app = null; }
+        const menuVolver = session.menu === 'prevebsa' ? MENU_PREVEBSA : session.menu === 'atipop' ? MENU_ATIPOP : MENU_PRINCIPAL;
+        await sendWhatsApp(phone, menuVolver);
+      } else {
+        await sendWhatsApp(phone, MENU_PRINCIPAL);
+      }
+      return;
+    }
+
+    // ── Submenú PREVEBSA ──────────────────────────────────────
+    if (session.menu === 'prevebsa' && !session.contexto) {
  const ops = { '1':'prevebsa_1','2':'prevebsa_2','3':'prevebsa_3','4':'prevebsa_4','5':'prevebsa_5','6':'prevebsa_6','7':'prevebsa_7','8':'prevebsa_8' };
  if (ops[text]) {
  session.contexto = ops[text];
