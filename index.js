@@ -213,9 +213,9 @@ const MENU_PRINCIPAL = `✦ Bienvenido al soporte técnico de *ATI*
 ¿Con cuál aplicativo necesita ayuda?
 
 1️⃣ *PREVEBSA* — Seguridad y salud en el trabajo
-2️⃣ *ATIPOP* — Operación de subestaciones eléctricas
+2️⃣ *ATIPOP*
 3️⃣ *TUTORIALES*
-0️⃣ *ASESOR HUMANO*
+0️⃣ *ASESOR*
 
 _Responda con el número de su opción_ 👇`;
 
@@ -253,25 +253,38 @@ Un asesor de ATI le responderá en breve desde este número.
 
 Si desea, comparta más detalles o una captura de pantalla para agilizar la atención.`;
 
-const MENU_TUTORIALES = `*Tutoriales disponibles:*
+const MENU_TUTORIALES = `*Tutoriales* — ¿De cuál aplicativo?
+
+1️⃣ PREVEBSA
+2️⃣ ATIPOP
+0️⃣ Volver al menú principal`;
+
+const MENU_TUTORIALES_PREVEBSA = `*Tutoriales PREVEBSA:*
 
 1️⃣ Login en PREVEBSA
 2️⃣ Plan Diario en PREVEBSA
 3️⃣ Inspecciones en PREVEBSA
-4️⃣ FaceID en ATIPOP
-5️⃣ Login con credenciales en ATIPOP
-6️⃣ Cómo borrar caché
-7️⃣ Recuperar contraseña ATIPOP
-0️⃣ Volver al menú principal`;
+0️⃣ Volver`;
 
-const VIDEOS = {
- '1': { url: 'https://drive.google.com/uc?export=download&id=1xiZ9qBOp7W8zb9sEfs-3U9v-1aLHUsYQ', titulo: 'Login en PREVEBSA' },
- '2': { url: 'https://drive.google.com/uc?export=download&id=1r3XjnUIWM8T8lEXptBJKMUmZ09SF8SJ4', titulo: 'Plan Diario en PREVEBSA' },
- '3': { url: 'https://drive.google.com/uc?export=download&id=1d23W40kT64R4zJ01qgYTDlAOfudVA9JB', titulo: 'Inspecciones en PREVEBSA' },
- '4': { url: 'https://drive.google.com/uc?export=download&id=1wEwGs7Mc8h9gSO22kRy6itN27YiQIq5O', titulo: 'FaceID en ATIPOP' },
- '5': { url: 'https://drive.google.com/uc?export=download&id=115kK2LCCS43mfD2S9wWJ266zmzdl_LvZ', titulo: 'Login con credenciales en ATIPOP' },
- '6': { url: 'https://drive.google.com/uc?export=download&id=1K-F66G0Mu4vHzF9-vrt42QnUoGUrEDLR', titulo: 'Cómo borrar caché' },
- '7': { url: 'https://drive.google.com/uc?export=download&id=1-tVGXmw_NqvBqTgX7Wkc0nMURgLXSOrh', titulo: 'Recuperar contraseña ATIPOP' }
+const MENU_TUTORIALES_ATIPOP = `*Tutoriales ATIPOP:*
+
+1️⃣ FaceID en ATIPOP
+2️⃣ Login con credenciales en ATIPOP
+3️⃣ Cómo borrar caché
+4️⃣ Recuperar contraseña ATIPOP
+0️⃣ Volver`;
+
+const VIDEOS_PREVEBSA = {
+  '1': { url: 'https://drive.google.com/uc?export=download&id=1xiZ9qBOp7W8zb9sEfs-3U9v-1aLHUsYQ', titulo: 'Tutorial: Login en PREVEBSA' },
+  '2': { url: 'https://drive.google.com/uc?export=download&id=1r3XjnUIWM8T8lEXptBJKMUmZ09SF8SJ4', titulo: 'Tutorial: Plan Diario en PREVEBSA' },
+  '3': { url: 'https://drive.google.com/uc?export=download&id=1d23W40kT64R4zJ01qgYTDlAOfudVA9JB', titulo: 'Tutorial: Inspecciones en PREVEBSA' }
+};
+
+const VIDEOS_ATIPOP = {
+  '1': { url: 'https://drive.google.com/uc?export=download&id=1wEwGs7Mc8h9gSO22kRy6itN27YiQIq5O', titulo: 'Tutorial: FaceID en ATIPOP' },
+  '2': { url: 'https://drive.google.com/uc?export=download&id=115kK2LCCS43mfD2S9wWJ266zmzdl_LvZ', titulo: 'Tutorial: Login con credenciales en ATIPOP' },
+  '3': { url: 'https://drive.google.com/uc?export=download&id=1K-F66G0Mu4vHzF9-vrt42QnUoGUrEDLR', titulo: 'Tutorial: Cómo borrar caché' },
+  '4': { url: 'https://drive.google.com/uc?export=download&id=1-tVGXmw_NqvBqTgX7Wkc0nMURgLXSOrh', titulo: 'Tutorial: Recuperar contraseña ATIPOP' }
 };
 
 const CONTEXTOS = {
@@ -293,18 +306,59 @@ const CONTEXTOS = {
  'atipop_8': 'Problema general en ATIPOP. NO mencione PREVEBSA. NO mencione FaceID a menos que el usuario lo indique'
 };
 
-async function enviarVideo(to, key) {
- const video = VIDEOS[key];
- if (!video) return;
- try {
- await fetch(`https://graph.facebook.com/v19.0/${process.env.PHONE_NUMBER_ID}/messages`, {
- method: 'POST',
- headers: { 'Authorization': `Bearer ${process.env.WHATSAPP_TOKEN}`, 'Content-Type': 'application/json' },
- body: JSON.stringify({ messaging_product: 'whatsapp', to, type: 'video', video: { link: video.url, caption: video.titulo } })
- });
- } catch {
- await sendWhatsApp(to, `${video.titulo}\n\n🔗 Ver: https://drive.google.com/file/d/${video.url.split('id=')[1]}/view`);
- }
+async function enviarVideo(to, video) {
+  if (!video) return;
+  try {
+    await fetch(`https://graph.facebook.com/v19.0/${process.env.PHONE_NUMBER_ID}/messages`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${process.env.WHATSAPP_TOKEN}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messaging_product: 'whatsapp', to, type: 'video', video: { link: video.url, caption: video.titulo } })
+    });
+  } catch {
+    await sendWhatsApp(to, `${video.titulo}\n\n› Ver: https://drive.google.com/file/d/${video.url.split('id=')[1]}/view`);
+  }
+}
+
+// Reenviar medios al asesor cuando cliente está en modo humano
+async function reenviarMediaAlAsesor(agentePhone, phone, message) {
+  const tipo = message.type;
+  const media = message[tipo];
+  if (!media || !media.id) return;
+  const tipoLabel = { image: 'imagen', audio: 'audio', video: 'video', document: 'documento', sticker: 'sticker' }[tipo] || tipo;
+  try {
+    const metaRes = await fetch(`https://graph.facebook.com/v19.0/${media.id}`, {
+      headers: { 'Authorization': `Bearer ${process.env.WHATSAPP_TOKEN}` }
+    });
+    const metaData = await metaRes.json();
+    const fileRes = await fetch(metaData.url, {
+      headers: { 'Authorization': `Bearer ${process.env.WHATSAPP_TOKEN}` }
+    });
+    const arrayBuf = await fileRes.arrayBuffer();
+    const buffer = Buffer.from(arrayBuf);
+    const { FormData, Blob } = require('node:buffer') || {};
+    const formData = new (require('form-data'))();
+    formData.append('messaging_product', 'whatsapp');
+    formData.append('type', media.mime_type || 'application/octet-stream');
+    formData.append('file', buffer, { filename: media.filename || `archivo.${tipo}`, contentType: media.mime_type });
+    const uploadRes = await fetch(`https://graph.facebook.com/v19.0/${process.env.PHONE_NUMBER_ID}/media`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${process.env.WHATSAPP_TOKEN}`, ...formData.getHeaders() },
+      body: formData
+    });
+    const uploadData = await uploadRes.json();
+    const body = { messaging_product: 'whatsapp', to: agentePhone, type: tipo };
+    body[tipo] = { id: uploadData.id };
+    if (media.caption && tipo !== 'audio') body[tipo].caption = `› Usuario +${phone}: ${media.caption}`;
+    await fetch(`https://graph.facebook.com/v19.0/${process.env.PHONE_NUMBER_ID}/messages`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${process.env.WHATSAPP_TOKEN}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    await sendWhatsApp(agentePhone, `› *Usuario +${phone}* envió un ${tipoLabel}.`);
+  } catch (e) {
+    console.error('Error reenviando media:', e.message);
+    await sendWhatsApp(agentePhone, `› *Usuario +${phone}* envió un ${tipoLabel} (no se pudo reenviar automáticamente).`);
+  }
 }
 
 // ============================================================
@@ -462,19 +516,39 @@ app.post('/webhook', async (req, res) => {
  }
  }
 
- // ── Tutoriales ────────────────────────────────────────────
- if (session.menu === 'tutoriales') {
- if (text === '0') { session.menu = null; session.app = null; await sendWhatsApp(phone, MENU_PRINCIPAL); return; }
- if (VIDEOS[text]) {
- await sendWhatsApp(phone, ' Enviando tutorial...');
- await enviarVideo(phone, text);
- await sendWhatsApp(phone, '¿Necesita ayuda con algo más? Escriba *menu* para volver.' + OPCION_ASESOR);
- return;
- }
- }
 
- // ── Knowledge base (filtrada por app activa) ──────────────
- const match = searchKnowledge(text, session.app);
+
+    // ── Tutoriales con submenú ────────────────────────────────
+    if (session.menu === 'tutoriales') {
+      if (text === '0') { session.menu = null; session.app = null; await sendWhatsApp(phone, MENU_PRINCIPAL); return; }
+      if (text === '1') { session.menu = 'tutoriales_prevebsa'; await sendWhatsApp(phone, MENU_TUTORIALES_PREVEBSA); return; }
+      if (text === '2') { session.menu = 'tutoriales_atipop'; await sendWhatsApp(phone, MENU_TUTORIALES_ATIPOP); return; }
+    }
+
+    if (session.menu === 'tutoriales_prevebsa') {
+      if (text === '0') { session.menu = 'tutoriales'; await sendWhatsApp(phone, MENU_TUTORIALES); return; }
+      const video = VIDEOS_PREVEBSA[text];
+      if (video) {
+        await sendWhatsApp(phone, 'Enviando tutorial...');
+        await enviarVideo(phone, video);
+        await sendWhatsApp(phone, '¿Necesita ayuda con algo más? Escriba *menu* para volver.' + OPCION_ASESOR);
+        return;
+      }
+    }
+
+    if (session.menu === 'tutoriales_atipop') {
+      if (text === '0') { session.menu = 'tutoriales'; await sendWhatsApp(phone, MENU_TUTORIALES); return; }
+      const video = VIDEOS_ATIPOP[text];
+      if (video) {
+        await sendWhatsApp(phone, 'Enviando tutorial...');
+        await enviarVideo(phone, video);
+        await sendWhatsApp(phone, '¿Necesita ayuda con algo más? Escriba *menu* para volver.' + OPCION_ASESOR);
+        return;
+      }
+    }
+
+    // ── Knowledge base (filtrada por app activa) ──────────────
+    const match = searchKnowledge(text, session.app);
  if (match) {
  session.attempts = 0;
  session.history.push({ role: 'user', content: text });
