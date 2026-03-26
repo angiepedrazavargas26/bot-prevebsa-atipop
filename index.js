@@ -133,7 +133,6 @@ function getSession(phone) {
 function searchKnowledge(text, appFiltro) {
  const lower = text.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
  for (const entry of knowledgeBase) {
- // Si hay un filtro de app activo, solo buscar en esa app
  if (appFiltro && entry.app !== appFiltro) continue;
  for (const keyword of entry.keywords) {
  const kw = keyword.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
@@ -283,12 +282,15 @@ const MENU_TUTORIALES_PREVEBSA = `*Tutoriales PREVEBSA:*
 3️⃣ Inspecciones en PREVEBSA
 0️⃣ Volver`;
 
+// ── MENÚ ATIPOP ACTUALIZADO con los 3 tutoriales nuevos ──────
 const MENU_TUTORIALES_ATIPOP = `*Tutoriales ATIPOP:*
 
-1️⃣ FaceID en ATIPOP
-2️⃣ Login con credenciales en ATIPOP
-3️⃣ Cómo borrar caché
-4️⃣ Recuperar contraseña ATIPOP
+1️⃣ Inicio de sesión con FaceID
+2️⃣ Registro de asistencia
+3️⃣ Cómo registrar FaceID
+4️⃣ Login con correo y contraseña
+5️⃣ Cómo borrar caché
+6️⃣ Recuperar contraseña
 0️⃣ Volver`;
 
 const VIDEOS_PREVEBSA = {
@@ -297,11 +299,16 @@ const VIDEOS_PREVEBSA = {
   '3': { url: 'https://drive.google.com/uc?export=download&id=1d23W40kT64R4zJ01qgYTDlAOfudVA9JB', titulo: 'Tutorial: Inspecciones en PREVEBSA' }
 };
 
+// ── VIDEOS ATIPOP ACTUALIZADOS ────────────────────────────────
+// Opciones 1-3: nuevos tutoriales
+// Opciones 4-6: tutoriales existentes reubicados
 const VIDEOS_ATIPOP = {
-  '1': { url: 'https://drive.google.com/uc?export=download&id=1wEwGs7Mc8h9gSO22kRy6itN27YiQIq5O', titulo: 'Tutorial: FaceID en ATIPOP' },
-  '2': { url: 'https://drive.google.com/uc?export=download&id=115kK2LCCS43mfD2S9wWJ266zmzdl_LvZ', titulo: 'Tutorial: Login con credenciales en ATIPOP' },
-  '3': { url: 'https://drive.google.com/uc?export=download&id=1K-F66G0Mu4vHzF9-vrt42QnUoGUrEDLR', titulo: 'Tutorial: Cómo borrar caché' },
-  '4': { url: 'https://drive.google.com/uc?export=download&id=1-tVGXmw_NqvBqTgX7Wkc0nMURgLXSOrh', titulo: 'Tutorial: Recuperar contraseña ATIPOP' }
+  '1': { url: 'https://drive.google.com/uc?export=download&id=1PkSvTmNZoZ69VLwDIgc5QoiVl9edDYkl', titulo: 'Tutorial: Inicio de sesión con FaceID en ATIPOP' },
+  '2': { url: 'https://drive.google.com/uc?export=download&id=1wbArXIY2ajQcLM0kWfcyOaaA2N_WTkwi', titulo: 'Tutorial: Registro de asistencia en ATIPOP' },
+  '3': { url: 'https://drive.google.com/uc?export=download&id=1jPswGIwLkJ60pwjtYWv4kulGXnpGi4Yv', titulo: 'Tutorial: Cómo registrar FaceID en ATIPOP' },
+  '4': { url: 'https://drive.google.com/uc?export=download&id=115kK2LCCS43mfD2S9wWJ266zmzdl_LvZ', titulo: 'Tutorial: Login con correo y contraseña en ATIPOP' },
+  '5': { url: 'https://drive.google.com/uc?export=download&id=1K-F66G0Mu4vHzF9-vrt42QnUoGUrEDLR', titulo: 'Tutorial: Cómo borrar caché' },
+  '6': { url: 'https://drive.google.com/uc?export=download&id=1-tVGXmw_NqvBqTgX7Wkc0nMURgLXSOrh', titulo: 'Tutorial: Recuperar contraseña ATIPOP' }
 };
 
 const CONTEXTOS = {
@@ -326,74 +333,84 @@ const CONTEXTOS = {
 async function enviarVideo(to, video) {
   if (!video) return;
   try {
-    await fetch(`https://graph.facebook.com/v19.0/${process.env.PHONE_NUMBER_ID}/messages`, {
+    const res = await fetch(`https://graph.facebook.com/v19.0/${process.env.PHONE_NUMBER_ID}/messages`, {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${process.env.WHATSAPP_TOKEN}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ messaging_product: 'whatsapp', to, type: 'video', video: { link: video.url, caption: video.titulo } })
     });
+    const data = await res.json();
+    // Si la API de Meta rechaza el enlace directo, enviar link alternativo
+    if (data.error) throw new Error(data.error.message);
   } catch {
-    await sendWhatsApp(to, `${video.titulo}\n\n› Ver: https://drive.google.com/file/d/${video.url.split('id=')[1]}/view`);
+    const fileId = video.url.split('id=')[1];
+    await sendWhatsApp(to, `*${video.titulo}*\n\n› Ver tutorial: https://drive.google.com/file/d/${fileId}/view`);
   }
 }
 
-// Reenviar medios al asesor cuando cliente está en modo humano
-async function reenviarMediaAlAsesor(agentePhone, phone, message) {
+// ============================================================
+// REENVÍO DE MEDIA AL ASESOR — versión corregida
+// ============================================================
+// Estrategia: descarga el archivo desde Meta y lo reenvía al
+// asesor usando su media_id original (evita re-subir cuando
+// el archivo ya está en los servidores de Meta).
+async function reenviarMediaAlAsesor(agentePhone, clientePhone, message) {
   const tipo = message.type;
-  const media = message[tipo];
-  if (!media || !media.id) return;
-  const tipoLabel = { image: 'imagen', audio: 'audio', video: 'video', document: 'documento', sticker: 'sticker' }[tipo] || tipo;
+  const mediaObj = message[tipo];
+  if (!mediaObj) return;
+
+  const tipoLabel = {
+    image: 'imagen', audio: 'audio', video: 'video',
+    document: 'documento', sticker: 'sticker'
+  }[tipo] || tipo;
 
   try {
-    // 1. Obtener URL del archivo desde Meta
-    const metaRes = await fetch(`https://graph.facebook.com/v19.0/${media.id}`, {
-      headers: { 'Authorization': `Bearer ${process.env.WHATSAPP_TOKEN}` }
-    });
-    const metaData = await metaRes.json();
-    if (!metaData.url) throw new Error('No se obtuvo URL del media');
+    // 1. Avisar al asesor quién envió el archivo
+    await sendWhatsApp(agentePhone, `📎 *Usuario +${clientePhone}* envió ${tipoLabel === 'imagen' ? 'una' : 'un'} *${tipoLabel}*:`);
 
-    // 2. Descargar el archivo
-    const fileRes = await fetch(metaData.url, {
-      headers: { 'Authorization': `Bearer ${process.env.WHATSAPP_TOKEN}` }
-    });
-    const buffer = Buffer.from(await fileRes.arrayBuffer());
+    // 2. Reenviar usando el media_id directamente (más eficiente,
+    //    no requiere descargar ni re-subir)
+    const body = {
+      messaging_product: 'whatsapp',
+      to: agentePhone,
+      type: tipo
+    };
 
-    // 3. Subir a WhatsApp Business
-    const FormData = require('form-data');
-    const formData = new FormData();
-    formData.append('messaging_product', 'whatsapp');
-    formData.append('type', media.mime_type || 'application/octet-stream');
-    formData.append('file', buffer, {
-      filename: media.filename || `archivo_${Date.now()}.${tipo}`,
-      contentType: media.mime_type || 'application/octet-stream'
-    });
-
-    const uploadRes = await fetch(`https://graph.facebook.com/v19.0/${process.env.PHONE_NUMBER_ID}/media`, {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${process.env.WHATSAPP_TOKEN}`, ...formData.getHeaders() },
-      body: formData
-    });
-    const uploadData = await uploadRes.json();
-    if (!uploadData.id) throw new Error('No se pudo subir el archivo: ' + JSON.stringify(uploadData));
-
-    // 4. Enviar al asesor
-    const body = { messaging_product: 'whatsapp', to: agentePhone, type: tipo };
-    body[tipo] = { id: uploadData.id };
-    if (media.caption && tipo !== 'audio') {
-      body[tipo].caption = `Usuario +${phone}: ${media.caption}`;
+    // Construir el objeto del medio con id y caption si aplica
+    body[tipo] = { id: mediaObj.id };
+    if (mediaObj.caption && tipo !== 'audio' && tipo !== 'sticker') {
+      body[tipo].caption = mediaObj.caption;
     }
 
-    await fetch(`https://graph.facebook.com/v19.0/${process.env.PHONE_NUMBER_ID}/messages`, {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${process.env.WHATSAPP_TOKEN}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
-    });
+    const res = await fetch(
+      `https://graph.facebook.com/v19.0/${process.env.PHONE_NUMBER_ID}/messages`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${process.env.WHATSAPP_TOKEN}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(body)
+      }
+    );
 
-    // 5. Texto indicando de quién viene
-    await sendWhatsApp(agentePhone, `*Usuario +${phone}* envió el ${tipoLabel} anterior.`);
+    const data = await res.json();
 
+    // Si Meta devuelve error (p.ej. media_id expirado), notificar sin crash
+    if (data.error) {
+      console.error('Error reenviando media:', data.error.message);
+      await sendWhatsApp(
+        agentePhone,
+        `⚠️ No se pudo reenviar el ${tipoLabel} automáticamente. Revise el chat del usuario +${clientePhone} directamente en WhatsApp.`
+      );
+    }
   } catch (e) {
-    console.error('Error reenviando media:', e.message);
-    await sendWhatsApp(agentePhone, `*Usuario +${phone}* envió un ${tipoLabel} (no se pudo reenviar automáticamente).`);
+    console.error('reenviarMediaAlAsesor error:', e.message);
+    try {
+      await sendWhatsApp(
+        agentePhone,
+        `⚠️ Error al reenviar el ${tipoLabel} del usuario +${clientePhone}. Revíselo directamente en WhatsApp.`
+      );
+    } catch (_) {}
   }
 }
 
@@ -413,20 +430,22 @@ app.post('/webhook', async (req, res) => {
  const entry = req.body.entry?.[0];
  const message = entry?.changes?.[0]?.value?.messages?.[0];
     if (!message) return;
+
     const tipo = message.type;
     const phone = message.from;
 
-    // ── Media en modo humano → avisar al asesor ─────────────
+    // ── Media de cliente en modo humano → reenviar al asesor ──
     if (modoHumano.has(phone) && tipo !== 'text') {
-      const tipoLabel = { image: 'una imagen', audio: 'un audio', video: 'un video', document: 'un documento', sticker: 'un sticker' }[tipo] || 'un archivo';
+      // Buscar el asesor asignado a este cliente
       let agenteAsignado = null;
       for (const [agente, cliente] of agenteActivo.entries()) {
         if (cliente === phone) { agenteAsignado = agente; break; }
       }
+
+      // Reenviar a su asesor asignado, o a todos si aún no hay uno
       const destinos = agenteAsignado ? [agenteAsignado] : AGENTES;
       for (const dest of destinos) {
-        try { await sendWhatsApp(dest, `*Usuario +${phone}* envió ${tipoLabel}.
-Revise el chat de WhatsApp del usuario para verlo.`); } catch(e) {}
+        await reenviarMediaAlAsesor(dest, phone, message);
       }
       return;
     }
@@ -474,14 +493,10 @@ Revise el chat de WhatsApp del usuario para verlo.`); } catch(e) {}
  if (cliente === phone) { agenteAsignado = agente; break; }
  }
     if (agenteAsignado) {
-      await sendWhatsApp(agenteAsignado, `*Usuario +${phone}:*
-${text}`);
+      await sendWhatsApp(agenteAsignado, `*Usuario +${phone}:*\n${text}`);
     } else {
       for (const agente of AGENTES) {
-        try { await sendWhatsApp(agente, `*Usuario +${phone}:*
-${text}
-
-_Escriba *#agente ${phone}* para atender_`); } catch (e) {}
+        try { await sendWhatsApp(agente, `*Usuario +${phone}:*\n${text}\n\n_Escriba *#agente ${phone}* para atender_`); } catch (e) {}
       }
     }
  return;
@@ -509,9 +524,7 @@ _Escriba *#agente ${phone}* para atender_`); } catch (e) {}
  return;
  }
 
-
-
-    // ── Tutoriales con submenú (ANTES de asesor para que 0=volver funcione) ──
+    // ── Tutoriales con submenú ────────────────────────────────
     if (session.menu === 'tutoriales') {
       if (text === '0') { session.menu = null; session.app = null; await sendWhatsApp(phone, MENU_PRINCIPAL); return; }
       if (text === '1') { session.menu = 'tutoriales_prevebsa'; await sendWhatsApp(phone, MENU_TUTORIALES_PREVEBSA); return; }
@@ -569,7 +582,6 @@ _Escriba *#agente ${phone}* para atender_`); } catch (e) {}
     // ── 0 = volver en cualquier submenú ──────────────────────
     if (text === '0') {
       if (session.menu && session.menu !== 'principal') {
-        // Volver un nivel
         if (session.contexto) { session.contexto = null; }
         else { session.menu = null; session.app = null; }
         const menuVolver = session.menu === 'prevebsa' ? MENU_PREVEBSA : session.menu === 'atipop' ? MENU_ATIPOP : MENU_PRINCIPAL;
@@ -620,9 +632,7 @@ _Escriba *#agente ${phone}* para atender_`); } catch (e) {}
  }
  }
 
-
-
-    // ── Knowledge base (filtrada por app activa) ──────────────
+    // ── Knowledge base ────────────────────────────────────────
     const match = searchKnowledge(text, session.app);
  if (match) {
  session.attempts = 0;
