@@ -3,7 +3,7 @@ const express = require('express');
 const app = express();
 app.use(express.json());
 
-const AGENTES = ['573026696723'];
+const AGENTES = ['573026696723', '573163195872','573102614279'];
 const modoHumano = new Set();
 const agenteActivo = new Map();
 const sessions = {};
