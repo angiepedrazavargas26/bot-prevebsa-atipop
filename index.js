@@ -3,7 +3,7 @@ const express = require('express');
 const app = express();
 app.use(express.json());
 
-const AGENTES = ['573102614279', '573212135099'];
+const AGENTES = ['573026696723'];
 const modoHumano = new Set();
 const agenteActivo = new Map();
 const sessions = {};
@@ -210,7 +210,7 @@ const MENU_PRINCIPAL = `✦ Bienvenido al soporte técnico de *ATI*
 
 ¿Con cuál aplicativo necesita ayuda?
 
-1️⃣ *PREVEBS*
+1️⃣ *PREVEBSA*
    Seguridad y salud en el trabajo (HSE)
 2️⃣ *ATIPOP*
    Operación, montaje y mantenimiento eléctrico
