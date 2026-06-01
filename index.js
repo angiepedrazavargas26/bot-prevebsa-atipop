@@ -210,7 +210,7 @@ const MENU_PRINCIPAL = `✦ Bienvenido al soporte técnico de *ATI*
 
 ¿Con cuál aplicativo necesita ayuda?
 
-1️⃣ *PREVEBSA*
+1️⃣ *PREVEBS*
    Seguridad y salud en el trabajo (HSE)
 2️⃣ *ATIPOP*
    Operación, montaje y mantenimiento eléctrico
