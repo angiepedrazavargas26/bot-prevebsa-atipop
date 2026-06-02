@@ -823,12 +823,33 @@ async function sendMenuOpcionesAtipop(to) {
 }
 
 async function notificarAgentes(phone, nombre, texto) {
-  const alerta = `▣ *NUEVO CASO DE SOPORTE*\n\n· Usuario: *${nombre}* (+${phone})\n· Mensaje: "${texto}"\n\nInformación: se mantiene la que envía.\n\nOpciones:\n› *Aceptar*: escriba *#agente ${phone}*\n› *Rechazar*: escriba *#bot*`;
+  const bodyText = `▣ *NUEVO CASO DE SOPORTE*\n\n· Usuario: *${nombre}* (+${phone})\n· Mensaje: "${texto}"`;
+  const rows = [
+    {
+      id: `#agente ${phone}`,
+      title: "Aceptar",
+      description: "Atender este caso",
+    },
+    {
+      id: "#rechazar",
+      title: "Rechazar",
+      description: "No puedo atenderlo ahora",
+    },
+  ];
   for (const agente of AGENTES) {
     try {
-      await sendWhatsApp(agente, alerta);
+      await sendInteractiveList(
+        agente,
+        bodyText,
+        "Responder solicitud",
+        rows,
+        "Toque una opción o escriba el comando",
+      );
     } catch (e) {
-      console.error(e.message);
+      try {
+        const alerta = `${bodyText}\n\nOpciones:\n› *Aceptar*: escriba *#agente ${phone}*\n› *Rechazar*: escriba *#rechazar*`;
+        await sendWhatsApp(agente, alerta);
+      } catch (_) {}
     }
   }
 }
@@ -1270,6 +1291,20 @@ app.post("/webhook", async (req, res) => {
         await sendWhatsApp(
           cliente,
           "Un asesor de ATI está disponible. ¿En qué le puedo ayudar?",
+        );
+        return;
+      }
+      if (text === "#rechazar") {
+        await sendWhatsApp(
+          phone,
+          "Caso rechazado. Seguirás disponible para otros casos.",
+        );
+        return;
+      }
+      if (text === "#bot") {
+        await sendWhatsApp(
+          phone,
+          "Caso rechazado. Seguirás disponible para otros casos.",
         );
         return;
       }
