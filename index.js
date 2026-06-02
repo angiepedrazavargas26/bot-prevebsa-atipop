@@ -1292,6 +1292,7 @@ app.post("/webhook", async (req, res) => {
     if (!text) return;
 
     console.log(`📩 De ${phone}: ${text}`);
+    const session = getSession(phone);
 
     // ── Comandos de agentes ───────────────────────────────────
     if (AGENTES.includes(phone)) {
@@ -1310,13 +1311,6 @@ app.post("/webhook", async (req, res) => {
         return;
       }
       if (text === "#rechazar") {
-        await sendWhatsApp(
-          phone,
-          "Caso rechazado. Seguirás disponible para otros casos.",
-        );
-        return;
-      }
-      if (text === "#bot") {
         await sendWhatsApp(
           phone,
           "Caso rechazado. Seguirás disponible para otros casos.",
