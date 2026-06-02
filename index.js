@@ -546,7 +546,6 @@ async function sendMenuPrincipal(to) {
         description: "Operación, montaje y mantenimiento eléctrico",
       },
       { id: "3", title: "TUTORIALES", description: "Videos paso a paso" },
-      { id: "0", title: "Volver", description: "Regresar al inicio" },
       {
         id: "#",
         title: "Contactar con un asesor",
@@ -1498,6 +1497,28 @@ app.post("/webhook", async (req, res) => {
       } else {
         await sendMenuPrincipal(phone);
       }
+      return;
+    }
+
+    if (
+      session.menu === "prevebsa" &&
+      !session.contexto &&
+      !session.submenu &&
+      /^[1-8]$/.test(text)
+    ) {
+      session.submenu = "prevebsa_detalle";
+      await sendMenuOpcionesPrevebsa(phone);
+      return;
+    }
+
+    if (
+      session.menu === "atipop" &&
+      !session.contexto &&
+      !session.submenu &&
+      /^[1-8]$/.test(text)
+    ) {
+      session.submenu = "atipop_detalle";
+      await sendMenuOpcionesAtipop(phone);
       return;
     }
 
