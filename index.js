@@ -482,7 +482,7 @@ async function sendWhatsApp(to, message) {
 
 async function sendInteractiveList(to, bodyText, buttonText, rows, footerText) {
   try {
-    await fetch(
+    const res = await fetch(
       `https://graph.facebook.com/v19.0/${process.env.PHONE_NUMBER_ID}/messages`,
       {
         method: "POST",
@@ -511,6 +511,12 @@ async function sendInteractiveList(to, bodyText, buttonText, rows, footerText) {
         }),
       },
     );
+    const data = await res.json();
+    if (!res.ok || data.error) {
+      throw new Error(
+        data.error?.message || "WhatsApp interactive list failed",
+      );
+    }
   } catch (error) {
     console.error("sendInteractiveList error:", error.message);
     const text = `${bodyText}\n\n${rows
@@ -1205,7 +1211,6 @@ app.post("/webhook", async (req, res) => {
     }
     if (!text) return;
 
-    console.log(`📩 De ${phone}: ${text}`);
     console.log(`📩 De ${phone}: ${text}`);
 
     // ── Comandos de agentes ───────────────────────────────────
