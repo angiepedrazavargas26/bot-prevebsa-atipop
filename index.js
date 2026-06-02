@@ -190,7 +190,7 @@ async function agregarParticipanteAGrupo(grupoId, phone) {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          phone_number: phone
+          user: phone
         })
       }
     );
@@ -216,7 +216,7 @@ async function crearGrupoSoporte(userPhone, userNombre) {
           messaging_product: 'whatsapp',
           subject: `Soporte ATI ${userNombre || normalizedPhone}`,
           description: `Grupo de soporte técnico ATI - Usuario: +${normalizedPhone}`,
-          participants: [{ phone_number: normalizedPhone }]
+          participants: [{ user: normalizedPhone }]
         })
       }
     );
@@ -248,7 +248,7 @@ async function agregarAsesorAComunidad(comunidadId, agentePhone) {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          phone_number: agentePhone
+          user: agentePhone
         })
       }
     );
@@ -683,7 +683,7 @@ if (text.startsWith('#agente ')) {
     if (text === '#' || palabrasAsesor.some(p => textLower.includes(p))) {
       // ✅ Crear comunidad de soporte
       const grupoId = await crearGrupoSoporte(phone, session.nombre);
-          
+
       if (grupoId) {
         await sendWhatsApp(phone, `✅ *Comunidad de soporte creada*\n\nUn asesor de ATI se unirá en breve.\n\n_Tu chat con el bot se mantiene igual. Este es un chat nuevo y separado._`);
         await notificarAgentesEnComunidad(phone, grupoId, session.nombre, session.contexto, `Solicitud de asesor. Módulo: ${session.contexto || 'menú principal'}. Mensaje: "${text}"`);
