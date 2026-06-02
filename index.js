@@ -480,7 +480,22 @@ async function sendWhatsApp(to, message) {
   return response.json();
 }
 
+function sanitizeInteractiveRows(rows) {
+  return rows.map((row) => ({
+    id: String(row.id || "").trim(),
+    title: String(row.title || "")
+      .replace(/\s+/g, " ")
+      .slice(0, 24)
+      .trim(),
+    description:
+      row.description !== undefined
+        ? String(row.description).replace(/\s+/g, " ").slice(0, 72).trim()
+        : undefined,
+  }));
+}
+
 async function sendInteractiveList(to, bodyText, buttonText, rows, footerText) {
+  const sanitizedRows = sanitizeInteractiveRows(rows);
   try {
     const res = await fetch(
       `https://graph.facebook.com/v19.0/${process.env.PHONE_NUMBER_ID}/messages`,
@@ -502,7 +517,7 @@ async function sendInteractiveList(to, bodyText, buttonText, rows, footerText) {
               sections: [
                 {
                   title: "Opciones",
-                  rows,
+                  rows: sanitizedRows,
                 },
               ],
             },
@@ -519,7 +534,7 @@ async function sendInteractiveList(to, bodyText, buttonText, rows, footerText) {
     }
   } catch (error) {
     console.error("sendInteractiveList error:", error.message);
-    const text = `${bodyText}\n\n${rows
+    const text = `${bodyText}\n\n${sanitizedRows
       .map(
         (row) =>
           `${row.id}. ${row.title}${row.description ? "\n" + row.description : ""}`,
