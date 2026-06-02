@@ -133,6 +133,7 @@ function getSession(phone) {
    contexto: null, 
    menu: null, 
    app: null,
+   submenu: null,
    esperandoNombre: false  
  };
  }
@@ -300,6 +301,54 @@ const MENU_TUTORIALES_ATIPOP = `*Tutoriales ATIPOP:*
 5️⃣ Cómo borrar caché
 6️⃣ Recuperar contraseña
 0️⃣ Volver`;
+
+const MENU_OPCIONES_PREVEBSA = `Seleccione el detalle del problema en PREVEBSA:
+
+1️⃣ No puedo ingresar / recuperar contraseña
+2️⃣ No guarda o se pierden los datos
+3️⃣ No puedo crear o reabrir planificaciones
+4️⃣ La inspección se cierra o no aparece
+5️⃣ No guarda imágenes o fotos
+6️⃣ No llegan notificaciones
+7️⃣ Problemas con configuración / modo offline
+8️⃣ Otro problema en PREVEBSA
+
+Responda con el número para que el mensaje se genere automáticamente.`;
+
+const MENU_OPCIONES_ATIPOP = `Seleccione el detalle del problema en ATIPOP:
+
+1️⃣ Problemas de inicio de sesión (SGA / FaceID)
+2️⃣ Mi Cuenta / Documentos / carnet
+3️⃣ Reporte en Ruta
+4️⃣ Supervisiones e Inspecciones
+5️⃣ Lecturas o equipos
+6️⃣ Sincronización de datos
+7️⃣ Configuración / GPS / alertas
+8️⃣ Otro problema en ATIPOP
+
+Responda con el número para que el mensaje se genere automáticamente.`;
+
+const OPCIONES_PREVEBSA = {
+ '1': 'Tengo un problema en PREVEBSA con el ingreso o la recuperación de contraseña. No puedo entrar con mi usuario y necesito recuperar el acceso.',
+ '2': 'En PREVEBSA no se guardan los cambios o se pierden los datos. Necesito ayuda para que el plan quede registrado correctamente.',
+ '3': 'No puedo crear ni reabrir una planificación en PREVEBSA. Necesito saber cómo continuar o corregir la planificación.',
+ '4': 'La inspección en PREVEBSA se cerró sola o no aparece en el plan diario. Necesito saber qué hacer para que aparezca.',
+ '5': 'En PREVEBSA las imágenes no se guardan o no suben. Necesito ayuda para que las fotos y evidencias queden registradas.',
+ '6': 'En PREVEBSA no llegan las notificaciones o hay problemas con los avisos. Necesito que me indiquen cómo activar las notificaciones.',
+ '7': 'Tengo un problema con la configuración de PREVEBSA: modo offline, segundo plano o notificaciones. Necesito ayuda para ajustar estos parámetros.',
+ '8': 'Tengo otro problema con PREVEBSA y necesito asistencia técnica puntual.'
+};
+
+const OPCIONES_ATIPOP = {
+ '1': 'Tengo un problema en ATIPOP con el inicio de sesión: no puedo entrar con correo/contraseña o FaceID.',
+ '2': 'Tengo un problema en ATIPOP con Mi Cuenta, documentos o carnet. Necesito ayuda para acceder a esos datos.',
+ '3': 'Tengo un problema con Reporte en Ruta en ATIPOP y necesito saber cómo crear o enviar el reporte correctamente.',
+ '4': 'Tengo un problema con Supervisiones e Inspecciones en ATIPOP y necesito ayuda para registrarlas o completar el proceso.',
+ '5': 'Tengo un problema con Lecturas o Equipos en ATIPOP: no puedo registrar valores o no encuentro el equipo.',
+ '6': 'ATIPOP no sincroniza bien, los datos están desactualizados o no carga información. Necesito ayuda con la sincronización.',
+ '7': 'Tengo un problema en ATIPOP con la configuración, GPS o alertas y necesito asistencia para ajustar esos parámetros.',
+ '8': 'Tengo otro problema con ATIPOP y necesito asistencia técnica puntual.'
+};
 
 const VIDEOS_PREVEBSA = {
   '1': { url: 'https://drive.google.com/uc?export=download&id=1xiZ9qBOp7W8zb9sEfs-3U9v-1aLHUsYQ', titulo: 'Tutorial: Login en PREVEBSA' },
@@ -616,6 +665,60 @@ if (session.esperandoNombre) {
         await sendWhatsApp(phone, MENU_PRINCIPAL);
       }
       return;
+    }
+    
+        // ── Submenú de selección automática para PREVEBSA ────────
+    if (session.menu === 'prevebsa' && !session.contexto && !session.submenu) {
+      session.submenu = 'prevebsa_detalle';
+      await sendWhatsApp(phone, MENU_OPCIONES_PREVEBSA);
+      return;
+    }
+
+    if (session.submenu === 'prevebsa_detalle') {
+      const detalle = OPCIONES_PREVEBSA[text];
+      if (detalle) {
+        session.submenu = null;
+        session.contexto = 'prevebsa_' + text;
+        session.attempts = 0;
+        session.history.push({ role: 'user', content: detalle });
+        const match = searchKnowledge(detalle, 'PREVEBSA');
+        if (match) {
+          await sendWhatsApp(phone, match.respuesta);
+          return;
+        }
+        const reply = await askClaude(detalle, session.history, session.nombre, CONTEXTOS[session.contexto], session.app);
+        session.history.push({ role: 'assistant', content: reply });
+        if (session.history.length > 12) session.history = session.history.slice(-12);
+        await sendWhatsApp(phone, reply);
+        return;
+      }
+    }
+
+    // ── Submenú de selección automática para ATIPOP ─────────
+    if (session.menu === 'atipop' && !session.contexto && !session.submenu) {
+      session.submenu = 'atipop_detalle';
+      await sendWhatsApp(phone, MENU_OPCIONES_ATIPOP);
+      return;
+    }
+
+    if (session.submenu === 'atipop_detalle') {
+      const detalle = OPCIONES_ATIPOP[text];
+      if (detalle) {
+        session.submenu = null;
+        session.contexto = 'atipop_' + text;
+        session.attempts = 0;
+        session.history.push({ role: 'user', content: detalle });
+        const match = searchKnowledge(detalle, 'ATIPOP');
+        if (match) {
+          await sendWhatsApp(phone, match.respuesta);
+          return;
+        }
+        const reply = await askClaude(detalle, session.history, session.nombre, CONTEXTOS[session.contexto], session.app);
+        session.history.push({ role: 'assistant', content: reply });
+        if (session.history.length > 12) session.history = session.history.slice(-12);
+        await sendWhatsApp(phone, reply);
+        return;
+      }
     }
 
     // ── Submenú PREVEBSA ──────────────────────────────────────
