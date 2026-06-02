@@ -135,10 +135,6 @@ function normalizePhone(phone) {
   return String(phone || '').replace(/\D/g, '');
 }
 
-function normalizePhone(p) {
-  return String(p || '').replace(/\D/g, '');
-}
-
 function searchKnowledge(text, appFiltro) {
  const lower = text.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
  for (const entry of knowledgeBase) {
@@ -217,8 +213,10 @@ async function crearGrupoSoporte(userPhone, userNombre) {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          name: `Soporte ATI ${userNombre || normalizedPhone}`,
-          description: `Grupo de soporte técnico ATI - Usuario: +${normalizedPhone}`
+          messaging_product: 'whatsapp',
+          subject: `Soporte ATI ${userNombre || normalizedPhone}`,
+          description: `Grupo de soporte técnico ATI - Usuario: +${normalizedPhone}`,
+          participants: [{ phone_number: normalizedPhone }]
         })
       }
     );
@@ -229,17 +227,16 @@ async function crearGrupoSoporte(userPhone, userNombre) {
       return null;
     }
 
-    const grupoId = data.id;
-    const added = await agregarParticipanteAGrupo(grupoId, normalizedPhone);
-    if (!added) return null;
-
-    comunidades[normalizedPhone] = { grupoId, createdAt: Date.now() };
-    return grupoId;
+    const comunidadId = data.id;
+    comunidades[normalizedPhone] = { comunidadId, createdAt: Date.now() };
+    return comunidadId;
   } catch (e) {
     console.error('Error en crearGrupoSoporte:', e.message);
     return null;
   }
 }
+
+
 async function agregarAsesorAComunidad(comunidadId, agentePhone) {
   try {
     await fetch(
@@ -686,10 +683,10 @@ if (text.startsWith('#agente ')) {
     if (text === '#' || palabrasAsesor.some(p => textLower.includes(p))) {
       // ✅ Crear comunidad de soporte
       const grupoId = await crearGrupoSoporte(phone, session.nombre);
-      
-      if (comunidadId) {
+          
+      if (grupoId) {
         await sendWhatsApp(phone, `✅ *Comunidad de soporte creada*\n\nUn asesor de ATI se unirá en breve.\n\n_Tu chat con el bot se mantiene igual. Este es un chat nuevo y separado._`);
-        await notificarAgentesEnComunidad(phone, comunidadId, session.nombre, session.contexto, `Solicitud de asesor. Módulo: ${session.contexto || 'menú principal'}. Mensaje: "${text}"`);
+        await notificarAgentesEnComunidad(phone, grupoId, session.nombre, session.contexto, `Solicitud de asesor. Módulo: ${session.contexto || 'menú principal'}. Mensaje: "${text}"`);
       } else {
         await sendWhatsApp(phone, MENSAJE_AGENTE);
         await notificarAgentes(phone, `Solicitud de asesor. Módulo: ${session.contexto || 'menú principal'}. Mensaje: "${text}"`);
