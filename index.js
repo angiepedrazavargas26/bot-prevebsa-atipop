@@ -480,6 +480,298 @@ async function sendWhatsApp(to, message) {
   return response.json();
 }
 
+async function sendInteractiveList(to, bodyText, buttonText, rows, footerText) {
+  try {
+    await fetch(
+      `https://graph.facebook.com/v19.0/${process.env.PHONE_NUMBER_ID}/messages`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${process.env.WHATSAPP_TOKEN}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          messaging_product: "whatsapp",
+          to,
+          type: "interactive",
+          interactive: {
+            type: "list",
+            body: { text: bodyText },
+            action: {
+              button: buttonText,
+              sections: [
+                {
+                  title: "Opciones",
+                  rows,
+                },
+              ],
+            },
+            footer: footerText ? { text: footerText } : undefined,
+          },
+        }),
+      },
+    );
+  } catch (error) {
+    console.error("sendInteractiveList error:", error.message);
+    const text = `${bodyText}\n\n${rows
+      .map(
+        (row) =>
+          `${row.id}. ${row.title}${row.description ? "\n" + row.description : ""}`,
+      )
+      .join("\n\n")}`;
+    await sendWhatsApp(to, text);
+  }
+}
+
+async function sendMenuPrincipal(to) {
+  return sendInteractiveList(
+    to,
+    "✦ Bienvenido al soporte técnico de *ATI*\n\n¿Con cuál aplicativo necesita ayuda?",
+    "Seleccionar menú",
+    [
+      {
+        id: "1",
+        title: "PREVEBSA",
+        description: "Seguridad y salud en el trabajo (HSE)",
+      },
+      {
+        id: "2",
+        title: "ATIPOP",
+        description: "Operación, montaje y mantenimiento eléctrico",
+      },
+      { id: "3", title: "TUTORIALES", description: "Videos paso a paso" },
+    ],
+    "Toque una opción o escriba el número.",
+  );
+}
+
+async function sendMenuPrevebsa(to) {
+  return sendInteractiveList(
+    to,
+    "📱 *PREVEBSA* — ¿En qué le ayudo?",
+    "Seleccionar opción",
+    [
+      {
+        id: "1",
+        title: "Login / Contraseña",
+        description: "Problemas para ingresar o recuperar clave",
+      },
+      {
+        id: "2",
+        title: "Planificaciones",
+        description: "Crear o gestionar el plan diario",
+      },
+      {
+        id: "3",
+        title: "Inspecciones preoperacionales",
+        description: "Vehículo, moto o equipos críticos",
+      },
+      {
+        id: "4",
+        title: "Observaciones",
+        description: "Registrar hallazgos en campo",
+      },
+      {
+        id: "5",
+        title: "Planes de Acción",
+        description: "Seguimiento a hallazgos y correctivos",
+      },
+      {
+        id: "6",
+        title: "Módulo Proceso",
+        description: "Seguimiento de envíos e imágenes",
+      },
+      {
+        id: "7",
+        title: "Configuración / Notificaciones",
+        description: "Modo offline, segundo plano, alertas",
+      },
+      {
+        id: "8",
+        title: "Otro problema",
+        description: "Inconveniente no listado",
+      },
+    ],
+    "Toque una opción o escriba el número.",
+  );
+}
+
+async function sendMenuAtipop(to) {
+  return sendInteractiveList(
+    to,
+    "📱 *ATIPOP* — ¿En qué le ayudo?",
+    "Seleccionar opción",
+    [
+      {
+        id: "1",
+        title: "Inicio de sesión",
+        description: "Problemas con correo, contraseña o FaceID",
+      },
+      {
+        id: "2",
+        title: "Mi Cuenta / Documentos",
+        description: "Perfil, carnet, nómina, vehículo",
+      },
+      {
+        id: "3",
+        title: "Reporte en Ruta",
+        description: "Crear o gestionar reportes diarios",
+      },
+      {
+        id: "4",
+        title: "Supervisiones e Inspecciones",
+        description: "Registrar supervisiones o inspecciones",
+      },
+      {
+        id: "5",
+        title: "Lecturas / Equipos",
+        description: "Medidores, valores, equipos asignados",
+      },
+      {
+        id: "6",
+        title: "Sincronización",
+        description: "Datos desactualizados o sin cargar",
+      },
+      {
+        id: "7",
+        title: "Configuración / GPS / Alertas",
+        description: "Distancia GPS, vibración, segundo plano",
+      },
+      {
+        id: "8",
+        title: "Otro problema",
+        description: "Inconveniente no listado",
+      },
+    ],
+    "Toque una opción o escriba el número.",
+  );
+}
+
+async function sendMenuTutoriales(to) {
+  return sendInteractiveList(
+    to,
+    "*Tutoriales* — ¿De cuál aplicativo?",
+    "Seleccionar aplicación",
+    [
+      { id: "1", title: "PREVEBSA", description: "Ver tutoriales de PREVEBSA" },
+      { id: "2", title: "ATIPOP", description: "Ver tutoriales de ATIPOP" },
+      {
+        id: "0",
+        title: "Volver al menú principal",
+        description: "Regresar al inicio",
+      },
+    ],
+    "Toque una opción o escriba el número.",
+  );
+}
+
+async function sendMenuTutorialesPrevebsa(to) {
+  return sendInteractiveList(
+    to,
+    "*Tutoriales PREVEBSA:*",
+    "Seleccionar tutorial",
+    [
+      {
+        id: "1",
+        title: "Login en PREVEBSA",
+        description: "Ingreso y recuperación de contraseña",
+      },
+      {
+        id: "2",
+        title: "Plan Diario en PREVEBSA",
+        description: "Cómo usar el plan diario",
+      },
+      {
+        id: "3",
+        title: "Inspecciones en PREVEBSA",
+        description: "Crear inspecciones preoperacionales",
+      },
+      { id: "0", title: "Volver", description: "Regresar al menú anterior" },
+    ],
+    "Toque una opción o escriba el número.",
+  );
+}
+
+async function sendMenuTutorialesAtipop(to) {
+  return sendInteractiveList(
+    to,
+    "*Tutoriales ATIPOP:*",
+    "Seleccionar tutorial",
+    [
+      {
+        id: "1",
+        title: "Inicio de sesión con FaceID",
+        description: "Tutorial de FaceID",
+      },
+      {
+        id: "2",
+        title: "Registro de asistencia",
+        description: "Cómo registrar asistencia",
+      },
+      {
+        id: "3",
+        title: "Cómo registrar FaceID",
+        description: "Registrar FaceID paso a paso",
+      },
+      {
+        id: "4",
+        title: "Login con correo y contraseña",
+        description: "Ingresar con SGA",
+      },
+      {
+        id: "5",
+        title: "Cómo borrar caché",
+        description: "Eliminar datos y caché",
+      },
+      {
+        id: "6",
+        title: "Recuperar contraseña ATIPOP",
+        description: "Recuperar acceso",
+      },
+      { id: "0", title: "Volver", description: "Regresar al menú anterior" },
+    ],
+    "Toque una opción o escriba el número.",
+  );
+}
+
+async function sendMenuOpcionesPrevebsa(to) {
+  return sendInteractiveList(
+    to,
+    "Seleccione el detalle del problema en PREVEBSA:",
+    "Seleccionar detalle",
+    [
+      { id: "1", title: "Login / Contraseña" },
+      { id: "2", title: "No guarda datos" },
+      { id: "3", title: "Planificaciones" },
+      { id: "4", title: "Inspección" },
+      { id: "5", title: "Imágenes" },
+      { id: "6", title: "Notificaciones" },
+      { id: "7", title: "Configuración / Offline" },
+      { id: "8", title: "Otro problema" },
+    ],
+    "Toque una opción o escriba el número.",
+  );
+}
+
+async function sendMenuOpcionesAtipop(to) {
+  return sendInteractiveList(
+    to,
+    "Seleccione el detalle del problema en ATIPOP:",
+    "Seleccionar detalle",
+    [
+      { id: "1", title: "Inicio de sesión" },
+      { id: "2", title: "Mi Cuenta / Documentos" },
+      { id: "3", title: "Reporte en Ruta" },
+      { id: "4", title: "Supervisiones / Inspecciones" },
+      { id: "5", title: "Lecturas / Equipos" },
+      { id: "6", title: "Sincronización" },
+      { id: "7", title: "Configuración / GPS" },
+      { id: "8", title: "Otro problema" },
+    ],
+    "Toque una opción o escriba el número.",
+  );
+}
+
 async function notificarAgentes(phone, nombre, texto) {
   const alerta = `▣ *NUEVO CASO DE SOPORTE*\n\n· Usuario: *${nombre}* (+${phone})\n· Mensaje: "${texto}"\n\nPara atender escriba:\n› *#agente ${phone}*\n\nPara terminar:\n› *#bot*`;
   for (const agente of AGENTES) {
@@ -898,9 +1190,22 @@ app.post("/webhook", async (req, res) => {
       return;
     }
 
-    if (tipo !== "text") return;
+    let text = "";
+    if (tipo === "text") {
+      text = message.text.body.trim();
+    } else if (tipo === "interactive") {
+      text =
+        message.interactive?.button_reply?.id ||
+        message.interactive?.button_reply?.title ||
+        message.interactive?.list_reply?.id ||
+        message.interactive?.list_reply?.title ||
+        "";
+    } else {
+      return;
+    }
+    if (!text) return;
 
-    const text = message.text.body.trim();
+    console.log(`📩 De ${phone}: ${text}`);
     console.log(`📩 De ${phone}: ${text}`);
 
     // ── Comandos de agentes ───────────────────────────────────
@@ -979,7 +1284,7 @@ app.post("/webhook", async (req, res) => {
     // ── Primer mensaje ────────────────────────────────────────
     if (session.primerMensaje) {
       session.primerMensaje = false;
-      await sendWhatsApp(phone, MENU_PRINCIPAL);
+      await sendMenuPrincipal(phone);
       return;
     }
 
@@ -1003,7 +1308,7 @@ app.post("/webhook", async (req, res) => {
         menu: null,
         app: null,
       });
-      await sendWhatsApp(phone, MENU_PRINCIPAL);
+      await sendMenuPrincipal(phone);
       return;
     }
 
@@ -1012,24 +1317,24 @@ app.post("/webhook", async (req, res) => {
       if (text === "0") {
         session.menu = null;
         session.app = null;
-        await sendWhatsApp(phone, MENU_PRINCIPAL);
+        await sendMenuPrincipal(phone);
         return;
       }
       if (text === "1") {
         session.menu = "tutoriales_prevebsa";
-        await sendWhatsApp(phone, MENU_TUTORIALES_PREVEBSA);
+        await sendMenuTutorialesPrevebsa(phone);
         return;
       }
       if (text === "2") {
         session.menu = "tutoriales_atipop";
-        await sendWhatsApp(phone, MENU_TUTORIALES_ATIPOP);
+        await sendMenuTutorialesAtipop(phone);
         return;
       }
     }
     if (session.menu === "tutoriales_prevebsa") {
       if (text === "0") {
         session.menu = "tutoriales";
-        await sendWhatsApp(phone, MENU_TUTORIALES);
+        await sendMenuTutoriales(phone);
         return;
       }
       const video = VIDEOS_PREVEBSA[text];
@@ -1047,7 +1352,7 @@ app.post("/webhook", async (req, res) => {
     if (session.menu === "tutoriales_atipop") {
       if (text === "0") {
         session.menu = "tutoriales";
-        await sendWhatsApp(phone, MENU_TUTORIALES);
+        await sendMenuTutoriales(phone);
         return;
       }
       const video = VIDEOS_ATIPOP[text];
@@ -1107,19 +1412,19 @@ app.post("/webhook", async (req, res) => {
         session.menu = "prevebsa";
         session.app = "PREVEBSA";
         session.contexto = null;
-        await sendWhatsApp(phone, MENU_PREVEBSA);
+        await sendMenuPrevebsa(phone);
         return;
       }
       if (text === "2" || textLower.includes("atipop")) {
         session.menu = "atipop";
         session.app = "ATIPOP";
         session.contexto = null;
-        await sendWhatsApp(phone, MENU_ATIPOP);
+        await sendMenuAtipop(phone);
         return;
       }
       if (text === "3") {
         session.menu = "tutoriales";
-        await sendWhatsApp(phone, MENU_TUTORIALES);
+        await sendMenuTutoriales(phone);
         return;
       }
     }
@@ -1133,23 +1438,16 @@ app.post("/webhook", async (req, res) => {
           session.menu = null;
           session.app = null;
         }
-        const menuVolver =
-          session.menu === "prevebsa"
-            ? MENU_PREVEBSA
-            : session.menu === "atipop"
-              ? MENU_ATIPOP
-              : MENU_PRINCIPAL;
-        await sendWhatsApp(phone, menuVolver);
+        if (session.menu === "prevebsa") {
+          await sendMenuPrevebsa(phone);
+        } else if (session.menu === "atipop") {
+          await sendMenuAtipop(phone);
+        } else {
+          await sendMenuPrincipal(phone);
+        }
       } else {
-        await sendWhatsApp(phone, MENU_PRINCIPAL);
+        await sendMenuPrincipal(phone);
       }
-      return;
-    }
-
-    // ── Submenú de selección automática para PREVEBSA ────────
-    if (session.menu === "prevebsa" && !session.contexto && !session.submenu) {
-      session.submenu = "prevebsa_detalle";
-      await sendWhatsApp(phone, MENU_OPCIONES_PREVEBSA);
       return;
     }
 
@@ -1183,7 +1481,7 @@ app.post("/webhook", async (req, res) => {
     // ── Submenú de selección automática para ATIPOP ─────────
     if (session.menu === "atipop" && !session.contexto && !session.submenu) {
       session.submenu = "atipop_detalle";
-      await sendWhatsApp(phone, MENU_OPCIONES_ATIPOP);
+      await sendMenuOpcionesAtipop(phone);
       return;
     }
 
