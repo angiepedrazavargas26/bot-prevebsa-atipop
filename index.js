@@ -1290,6 +1290,7 @@ app.post("/webhook", async (req, res) => {
       return;
     }
     if (!text) return;
+    const session = getSession(phone);
 
     console.log(`📩 De ${phone}: ${text}`);
 
@@ -1377,8 +1378,6 @@ app.post("/webhook", async (req, res) => {
       }
       return;
     }
-
-    const session = getSession(phone);
 
     // ── Primer mensaje ────────────────────────────────────────
     if (session.primerMensaje) {
