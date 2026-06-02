@@ -125,7 +125,16 @@ const knowledgeBase = [
 
 function getSession(phone) {
  if (!sessions[phone]) {
- sessions[phone] = { history: [], attempts: 0, primerMensaje: true, nombre: null, contexto: null, menu: null, app: null };
+ sessions[phone] = { 
+   history: [], 
+   attempts: 0, 
+   primerMensaje: true, 
+   nombre: null, 
+   contexto: null, 
+   menu: null, 
+   app: null,
+   esperandoNombre: false  
+ };
  }
  return sessions[phone];
 }
@@ -156,13 +165,12 @@ async function sendWhatsApp(to, message) {
  return response.json();
 }
 
-async function notificarAgentes(phone, texto) {
- const alerta = `▣ *NUEVO CASO DE SOPORTE*\n\n· Usuario: +${phone}\n· Mensaje: "${texto}"\n\nPara atender escriba:\n› *#agente ${phone}*\n\nPara terminar:\n› *#bot*`;
+async function notificarAgentes(phone, nombre, texto) {
+ const alerta = `▣ *NUEVO CASO DE SOPORTE*\n\n· Usuario: *${nombre}* (+${phone})\n· Mensaje: "${texto}"\n\nPara atender escriba:\n› *#agente ${phone}*\n\nPara terminar:\n› *#bot*`;
  for (const agente of AGENTES) {
  try { await sendWhatsApp(agente, alerta); } catch (e) { console.error(e.message); }
  }
 }
-
 async function askClaude(userMessage, history, nombre, contexto, appActual) {
  const appNombre = appActual === 'PREVEBSA' ? 'PREVEBSA (seguridad y salud en el trabajo - HSE)' :
  appActual === 'ATIPOP' ? 'ATIPOP (gestión de subestaciones eléctricas)' : 'ATIPOP o PREVEBSA';
@@ -486,21 +494,22 @@ app.post('/webhook', async (req, res) => {
     }
  }
 
- // ── Cliente en modo humano ────────────────────────────────
- if (modoHumano.has(phone)) {
+// ── Cliente en modo humano ────────────────────────────
+if (modoHumano.has(phone)) {
  let agenteAsignado = null;
  for (const [agente, cliente] of agenteActivo.entries()) {
  if (cliente === phone) { agenteAsignado = agente; break; }
  }
+ const nombreOrPhone = session.nombre ? session.nombre : `+${phone}`;
     if (agenteAsignado) {
-      await sendWhatsApp(agenteAsignado, `*Usuario +${phone}:*\n${text}`);
+      await sendWhatsApp(agenteAsignado, `*${nombreOrPhone}:*\n${text}`);
     } else {
       for (const agente of AGENTES) {
-        try { await sendWhatsApp(agente, `*Usuario +${phone}:*\n${text}\n\n_Escriba *#agente ${phone}* para atender_`); } catch (e) {}
+        try { await sendWhatsApp(agente, `*${nombreOrPhone}:*\n${text}\n\n_Escriba *#agente ${phone}* para atender_`); } catch (e) {}
       }
     }
  return;
- }
+}
 
  const session = getSession(phone);
 
@@ -551,14 +560,31 @@ app.post('/webhook', async (req, res) => {
       }
     }
 
-    // ── Asesor: # o palabra clave ────────────────────────────
-    const palabrasAsesor = ['asesor', 'agente', 'humano', 'hablar con alguien'];
-    if (text === '#' || palabrasAsesor.some(p => textLower.includes(p))) {
-      await sendWhatsApp(phone, MENSAJE_AGENTE);
-      await notificarAgentes(phone, `Solicitud de asesor. Módulo: ${session.contexto || 'menú principal'}. Mensaje: "${text}"`);
-      modoHumano.add(phone);
-      return;
-    }
+// ── Asesor: # o palabra clave ────────────────────────────
+const palabrasAsesor = ['asesor', 'agente', 'humano', 'hablar con alguien'];
+if (text === '#' || palabrasAsesor.some(p => textLower.includes(p))) {
+  // Si ya tiene nombre, conectar directamente
+  if (session.nombre) {
+    await sendWhatsApp(phone, MENSAJE_AGENTE);
+    await notificarAgentes(phone, session.nombre, `Solicitud de asesor. Módulo: ${session.contexto || 'menú principal'}. Mensaje: "${text}"`);
+    modoHumano.add(phone);
+  } else {
+    // Si no tiene nombre, solicitarlo primero
+    session.esperandoNombre = true;
+    await sendWhatsApp(phone, '✓ Se le conectará con un asesor.\n\n¿Cuál es su nombre completo?');
+  }
+  return;
+}
+
+// ── Capturar nombre para asesor ──────────────────────────
+if (session.esperandoNombre) {
+  session.nombre = text.charAt(0).toUpperCase() + text.slice(1).toLowerCase();
+  session.esperandoNombre = false;
+  await sendWhatsApp(phone, MENSAJE_AGENTE);
+  await notificarAgentes(phone, session.nombre, `Solicitud de asesor. Módulo: ${session.contexto || 'menú principal'}.`);
+  modoHumano.add(phone);
+  return;
+}
 
     // ── Navegación menú principal ─────────────────────────────
     if (!session.menu || session.menu === 'principal') {
@@ -648,7 +674,8 @@ app.post('/webhook', async (req, res) => {
 
  if (session.attempts >= 5) {
  await sendWhatsApp(phone, MENSAJE_AGENTE);
- await notificarAgentes(phone, `5 intentos sin resolver. Módulo: ${session.contexto || 'general'}. Último mensaje: "${text}"`);
+const nombreOrPhone = session.nombre || `+${phone}`;
+await notificarAgentes(phone, nombreOrPhone, `5 intentos sin resolver. Módulo: ${session.contexto || 'general'}. Último mensaje: "${text}"`);
  modoHumano.add(phone);
  session.attempts = 0;
  return;
