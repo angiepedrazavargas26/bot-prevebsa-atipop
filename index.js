@@ -546,6 +546,12 @@ async function sendMenuPrincipal(to) {
         description: "Operación, montaje y mantenimiento eléctrico",
       },
       { id: "3", title: "TUTORIALES", description: "Videos paso a paso" },
+      { id: "0", title: "Volver", description: "Regresar al inicio" },
+      {
+        id: "#",
+        title: "Contactar con un asesor",
+        description: "Hablar con un asesor",
+      },
     ],
     "Toque una opción o escriba el número.",
   );
@@ -596,6 +602,12 @@ async function sendMenuPrevebsa(to) {
         id: "8",
         title: "Otro problema",
         description: "Inconveniente no listado",
+      },
+      { id: "0", title: "Volver", description: "Regresar al menú anterior" },
+      {
+        id: "#",
+        title: "Contactar con un asesor",
+        description: "Hablar con un asesor",
       },
     ],
     "Toque una opción o escriba el número.",
@@ -648,6 +660,12 @@ async function sendMenuAtipop(to) {
         title: "Otro problema",
         description: "Inconveniente no listado",
       },
+      { id: "0", title: "Volver", description: "Regresar al menú anterior" },
+      {
+        id: "#",
+        title: "Contactar con un asesor",
+        description: "Hablar con un asesor",
+      },
     ],
     "Toque una opción o escriba el número.",
   );
@@ -665,6 +683,11 @@ async function sendMenuTutoriales(to) {
         id: "0",
         title: "Volver al menú principal",
         description: "Regresar al inicio",
+      },
+      {
+        id: "#",
+        title: "Contactar con un asesor",
+        description: "Hablar con un asesor",
       },
     ],
     "Toque una opción o escriba el número.",
@@ -693,6 +716,11 @@ async function sendMenuTutorialesPrevebsa(to) {
         description: "Crear inspecciones preoperacionales",
       },
       { id: "0", title: "Volver", description: "Regresar al menú anterior" },
+      {
+        id: "#",
+        title: "Contactar con un asesor",
+        description: "Hablar con un asesor",
+      },
     ],
     "Toque una opción o escriba el número.",
   );
@@ -735,6 +763,11 @@ async function sendMenuTutorialesAtipop(to) {
         description: "Recuperar acceso",
       },
       { id: "0", title: "Volver", description: "Regresar al menú anterior" },
+      {
+        id: "#",
+        title: "Contactar con un asesor",
+        description: "Hablar con un asesor",
+      },
     ],
     "Toque una opción o escriba el número.",
   );
@@ -754,6 +787,12 @@ async function sendMenuOpcionesPrevebsa(to) {
       { id: "6", title: "Notificaciones" },
       { id: "7", title: "Configuración / Offline" },
       { id: "8", title: "Otro problema" },
+      { id: "0", title: "Volver", description: "Regresar al menú anterior" },
+      {
+        id: "#",
+        title: "Contactar con un asesor",
+        description: "Hablar con un asesor",
+      },
     ],
     "Toque una opción o escriba el número.",
   );
@@ -773,13 +812,19 @@ async function sendMenuOpcionesAtipop(to) {
       { id: "6", title: "Sincronización" },
       { id: "7", title: "Configuración / GPS" },
       { id: "8", title: "Otro problema" },
+      { id: "0", title: "Volver", description: "Regresar al menú anterior" },
+      {
+        id: "#",
+        title: "Contactar con un asesor",
+        description: "Hablar con un asesor",
+      },
     ],
     "Toque una opción o escriba el número.",
   );
 }
 
 async function notificarAgentes(phone, nombre, texto) {
-  const alerta = `▣ *NUEVO CASO DE SOPORTE*\n\n· Usuario: *${nombre}* (+${phone})\n· Mensaje: "${texto}"\n\nPara atender escriba:\n› *#agente ${phone}*\n\nPara terminar:\n› *#bot*`;
+  const alerta = `▣ *NUEVO CASO DE SOPORTE*\n\n· Usuario: *${nombre}* (+${phone})\n· Mensaje: "${texto}"\n\nInformación: se mantiene la que envía.\n\nOpciones:\n› *Aceptar*: escriba *#agente ${phone}*\n› *Rechazar*: escriba *#bot*`;
   for (const agente of AGENTES) {
     try {
       await sendWhatsApp(agente, alerta);
@@ -1464,40 +1509,6 @@ app.post("/webhook", async (req, res) => {
         session.attempts = 0;
         session.history.push({ role: "user", content: detalle });
         const match = searchKnowledge(detalle, "PREVEBSA");
-        if (match) {
-          await sendWhatsApp(phone, match.respuesta);
-          return;
-        }
-        const reply = await askClaude(
-          detalle,
-          session.history,
-          session.nombre,
-          CONTEXTOS[session.contexto],
-          session.app,
-        );
-        session.history.push({ role: "assistant", content: reply });
-        if (session.history.length > 12)
-          session.history = session.history.slice(-12);
-        await sendWhatsApp(phone, reply);
-        return;
-      }
-    }
-
-    // ── Submenú de selección automática para ATIPOP ─────────
-    if (session.menu === "atipop" && !session.contexto && !session.submenu) {
-      session.submenu = "atipop_detalle";
-      await sendMenuOpcionesAtipop(phone);
-      return;
-    }
-
-    if (session.submenu === "atipop_detalle") {
-      const detalle = OPCIONES_ATIPOP[text];
-      if (detalle) {
-        session.submenu = null;
-        session.contexto = "atipop_" + text;
-        session.attempts = 0;
-        session.history.push({ role: "user", content: detalle });
-        const match = searchKnowledge(detalle, "ATIPOP");
         if (match) {
           await sendWhatsApp(phone, match.respuesta);
           return;
