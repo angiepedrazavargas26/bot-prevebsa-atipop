@@ -131,6 +131,10 @@ function getSession(phone) {
  return sessions[phone];
 }
 
+function normalizePhone(phone) {
+  return String(phone || '').replace(/\D/g, '');
+}
+
 function normalizePhone(p) {
   return String(p || '').replace(/\D/g, '');
 }
@@ -179,37 +183,10 @@ async function notificarAgentesEnComunidad(userPhone, comunidadId, userName, mod
    }
  }
 }
-
-async function crearComunidadSoporte(userPhone, userNombre) {
+async function agregarParticipanteAGrupo(grupoId, phone) {
   try {
-    // 1. Crear la comunidad
-    const respCrear = await fetch(
-      `https://graph.facebook.com/v19.0/${process.env.PHONE_NUMBER_ID}/community`,
-      {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${process.env.WHATSAPP_TOKEN}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          name: `Soporte ${userNombre || userPhone}`,
-          description: `Chat de soporte técnico ATI - Usuario: +${userPhone}`,
-          icon: 'support' // opcional
-        })
-      }
-    );
-
-    const dataCrear = await respCrear.json();
-    if (dataCrear.error) {
-      console.error('Error creando comunidad:', dataCrear.error);
-      return null;
-    }
-
-    const comunidadId = dataCrear.id;
-
-    // 2. Agregar al usuario a la comunidad
     await fetch(
-      `https://graph.facebook.com/v19.0/${comunidadId}/participants`,
+      `https://graph.facebook.com/v19.0/${grupoId}/participants`,
       {
         method: 'POST',
         headers: {
@@ -217,21 +194,52 @@ async function crearComunidadSoporte(userPhone, userNombre) {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          phone_number: userPhone
+          phone_number: phone
         })
       }
     );
-
-    // 3. Guardar registro
-    comunidades[normalizePhone(userPhone)] = { comunidadId, createdAt: Date.now() };
-
-    return comunidadId;
+    return true;
   } catch (e) {
-    console.error('Error en crearComunidadSoporte:', e.message);
-    return null;
+    console.error('Error agregando participante al grupo:', e.message);
+    return false;
   }
 }
 
+async function crearGrupoSoporte(userPhone, userNombre) {
+  try {
+    const normalizedPhone = normalizePhone(userPhone);
+    const response = await fetch(
+      `https://graph.facebook.com/v19.0/${process.env.PHONE_NUMBER_ID}/groups`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${process.env.WHATSAPP_TOKEN}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          name: `Soporte ATI ${userNombre || normalizedPhone}`,
+          description: `Grupo de soporte técnico ATI - Usuario: +${normalizedPhone}`
+        })
+      }
+    );
+
+    const data = await response.json();
+    if (data.error) {
+      console.error('Error creando grupo:', data.error);
+      return null;
+    }
+
+    const grupoId = data.id;
+    const added = await agregarParticipanteAGrupo(grupoId, normalizedPhone);
+    if (!added) return null;
+
+    comunidades[normalizedPhone] = { grupoId, createdAt: Date.now() };
+    return grupoId;
+  } catch (e) {
+    console.error('Error en crearGrupoSoporte:', e.message);
+    return null;
+  }
+}
 async function agregarAsesorAComunidad(comunidadId, agentePhone) {
   try {
     await fetch(
@@ -254,7 +262,7 @@ async function agregarAsesorAComunidad(comunidadId, agentePhone) {
   }
 }
 
-async function enviarMensajeAComunidad(comunidadId, mensaje) {
+async function enviarMensajeAGrupo(grupoId, mensaje) {
   try {
     await fetch(
       `https://graph.facebook.com/v19.0/${process.env.PHONE_NUMBER_ID}/messages`,
@@ -266,14 +274,14 @@ async function enviarMensajeAComunidad(comunidadId, mensaje) {
         },
         body: JSON.stringify({
           messaging_product: 'whatsapp',
-          to: comunidadId,
+          to: grupoId,
           type: 'text',
           text: { body: mensaje }
         })
       }
     );
   } catch (e) {
-    console.error('Error enviando mensaje a comunidad:', e.message);
+    console.error('Error enviando mensaje al grupo:', e.message);
   }
 }
 
@@ -677,7 +685,7 @@ if (text.startsWith('#agente ')) {
     const palabrasAsesor = ['asesor', 'agente', 'humano', 'hablar con alguien'];
     if (text === '#' || palabrasAsesor.some(p => textLower.includes(p))) {
       // ✅ Crear comunidad de soporte
-      const comunidadId = await crearComunidadSoporte(phone, session.nombre);
+      const grupoId = await crearGrupoSoporte(phone, session.nombre);
       
       if (comunidadId) {
         await sendWhatsApp(phone, `✅ *Comunidad de soporte creada*\n\nUn asesor de ATI se unirá en breve.\n\n_Tu chat con el bot se mantiene igual. Este es un chat nuevo y separado._`);
