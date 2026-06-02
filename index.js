@@ -131,6 +131,10 @@ function getSession(phone) {
  return sessions[phone];
 }
 
+function normalizePhone(p) {
+  return String(p || '').replace(/\D/g, '');
+}
+
 function searchKnowledge(text, appFiltro) {
  const lower = text.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
  for (const entry of knowledgeBase) {
@@ -219,7 +223,7 @@ async function crearComunidadSoporte(userPhone, userNombre) {
     );
 
     // 3. Guardar registro
-    comunidades[userPhone] = { comunidadId, createdAt: Date.now() };
+    comunidades[normalizePhone(userPhone)] = { comunidadId, createdAt: Date.now() };
 
     return comunidadId;
   } catch (e) {
@@ -567,22 +571,22 @@ app.post('/webhook', async (req, res) => {
 
  // ── Comandos de agentes ───────────────────────────────────
  if (AGENTES.includes(phone)) {
- if (text.startsWith('#agente ')) {
- const cliente = text.split('#agente ')[1].trim();
- 
- if (comunidades[cliente]) {
-   const comunidadId = comunidades[cliente].comunidadId;
-   await agregarAsesorAComunidad(comunidadId, phone);
-   comunidadesAsesores[comunidadId] = phone;
-   agenteActivo.set(phone, cliente);
-   
-   await sendWhatsApp(phone, `*✅ Comunidad de soporte creada*\n\nAtendiendo a +${cliente}\n\nEscribe en la comunidad para comunicarte con el usuario.\nPara terminar escriba: *#bot*`);
-   await enviarMensajeAComunidad(comunidadId, `Un asesor de ATI está disponible. ¿En qué le puedo ayudar?\n\n_Este es un chat separado de soporte. Aquí podrás hablar directamente con el equipo técnico._`);
- } else {
-   await sendWhatsApp(phone, '❌ No se encontró la comunidad. Intenta de nuevo.');
- }
- return;
- }
+if (text.startsWith('#agente ')) {
+  const raw = text.split('#agente ')[1].trim();
+  const cliente = normalizePhone(raw);
+
+  if (comunidades[cliente]) {
+    const comunidadId = comunidades[cliente].comunidadId;
+    await agregarAsesorAComunidad(comunidadId, phone);
+    comunidadesAsesores[comunidadId] = phone;
+    agenteActivo.set(phone, cliente);
+    await sendWhatsApp(phone, `*✅ Comunidad de soporte creada*\n\nAtendiendo a +${cliente}\n\nEscribe en la comunidad para comunicarte con el usuario.\nPara terminar escriba: *#bot*`);
+    await enviarMensajeAComunidad(comunidadId, `Un asesor de ATI está disponible. ¿En qué le puedo ayudar?\n\n_Este es un chat separado de soporte._`);
+  } else {
+    await sendWhatsApp(phone, '❌ No se encontró la comunidad. Intenta de nuevo.');
+  }
+  return;
+}
  if (text === '#bot') {
  const cliente = agenteActivo.get(phone);
  if (cliente) {
