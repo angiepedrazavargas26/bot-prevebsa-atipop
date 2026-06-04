@@ -147,7 +147,7 @@ async function sendMenuTutoriales(to) {
   return sendInteractiveList(
     to,
     "*Tutoriales* — ¿De cuál aplicativo?",
-    "Seleccionar aplicación",
+    "Elegir app",
     [
       { id: "1", title: "PREVEBSA", description: "Ver tutoriales de PREVEBSA" },
       { id: "2", title: "ATIPOP", description: "Ver tutoriales de ATIPOP" },
