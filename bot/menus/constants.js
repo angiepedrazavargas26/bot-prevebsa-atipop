@@ -199,7 +199,7 @@ const VIDEOS_ATIPOP = {
 
 module.exports = {
   OPCION_ASESOR,
-  ContEXTOS,
+  CONTEXTOS,
   MENU_PRINCIPAL,
   MENU_PREVEBSA,
   MENU_ATIPOP,
