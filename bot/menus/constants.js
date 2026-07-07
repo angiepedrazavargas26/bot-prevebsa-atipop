@@ -4,21 +4,25 @@ const OPCION_ASESOR = "\n\n_Escriba *#* para hablar con un asesor_";
 
 const CONTEXTOS = {
   prevebsa_1: "Login o recuperación de contraseña en PREVEBSA",
-  prevebsa_2: "Planificaciones en PREVEBSA. Solo hay 2 formatos: Con Energía y Sin Energía",
-  prevebsa_3: "Inspecciones Preoperacionales en PREVEBSA. Hay 3 formatos: Vehículo, Moto, Equipos Críticos",
+  prevebsa_2:
+    "Planificaciones en PREVEBSA. Solo hay 2 formatos: Con Energía y Sin Energía",
+  prevebsa_3:
+    "Inspecciones Preoperacionales en PREVEBSA. Hay 3 formatos: Vehículo, Moto, Equipos Críticos",
   prevebsa_4: "Observaciones en PREVEBSA",
   prevebsa_5: "Planes de Acción en PREVEBSA",
   prevebsa_6: "Módulo Proceso en PREVEBSA",
   prevebsa_7: "Configuración o Notificaciones en PREVEBSA",
   prevebsa_8: "Problema general en PREVEBSA. NO mencione ATIPOP ni FaceID",
-  atipop_1: "Login en ATIPOP. Puede ser con correo/contraseña (SGA) o FaceID — son flujos distintos, pregunte cuál",
+  atipop_1:
+    "Login en ATIPOP. Puede ser con correo/contraseña (SGA) o FaceID — son flujos distintos, pregunte cuál",
   atipop_2: "Mi Cuenta o Documentos en ATIPOP",
   atipop_3: "Reporte en Ruta en ATIPOP",
   atipop_4: "Supervisiones e Inspecciones en ATIPOP. NO mencione FaceID",
   atipop_5: "Lecturas o Equipos en ATIPOP. NO mencione FaceID",
   atipop_6: "Sincronización en ATIPOP",
   atipop_7: "Configuración, GPS o Alertas en ATIPOP",
-  atipop_8: "Problema general en ATIPOP. NO mencione PREVEBSA. NO mencione FaceID a menos que el usuario lo indique",
+  atipop_8:
+    "Problema general en ATIPOP. NO mencione PREVEBSA. NO mencione FaceID a menos que el usuario lo indique",
 };
 
 const MENU_PRINCIPAL = `✦ Bienvenido al soporte técnico de *ATI*
@@ -95,6 +99,8 @@ const MENU_TUTORIALES_PREVEBSA = `*Tutoriales PREVEBSA:*
 1️⃣ Login en PREVEBSA
 2️⃣ Plan Diario en PREVEBSA
 3️⃣ Inspecciones en PREVEBSA
+4️⃣ borrar cache
+5️⃣ cambiar contraseña 
 0️⃣ Volver`;
 
 const MENU_TUTORIALES_ATIPOP = `*Tutoriales ATIPOP:*
@@ -103,8 +109,7 @@ const MENU_TUTORIALES_ATIPOP = `*Tutoriales ATIPOP:*
 2️⃣ Registro de asistencia
 3️⃣ Cómo registrar FaceID
 4️⃣ Login con correo y contraseña
-5️⃣ Cómo borrar caché
-6️⃣ Recuperar contraseña
+5️⃣ Recuperar contraseña
 0️⃣ Volver`;
 
 const MENU_OPCIONES_PREVEBSA = `Seleccione el detalle del problema en PREVEBSA:
@@ -168,6 +173,14 @@ const VIDEOS_PREVEBSA = {
     url: "https://drive.google.com/uc?export=download&id=1d23W40kT64R4zJ01qgYTDlAOfudVA9JB",
     titulo: "Tutorial: Inspecciones en PREVEBSA",
   },
+  4: {
+    url: "https://drive.google.com/uc?export=download&id=1K-F66G0Mu4vHzF9-vrt42QnUoGUrEDLR",
+    titulo: "Tutorial: Cómo borrar caché",
+  },
+  5: {
+    url: "https://atisga.blob.core.windows.net/atitotem/f3d335d3-b7c4-4f43-b3d2-b7020629c0f4.mp4",
+    titulo: "Tutorial: Cómo cambiar contraseña",
+  },
 };
 
 const VIDEOS_ATIPOP = {
@@ -188,10 +201,6 @@ const VIDEOS_ATIPOP = {
     titulo: "Tutorial: Login con correo y contraseña en ATIPOP",
   },
   5: {
-    url: "https://drive.google.com/uc?export=download&id=1K-F66G0Mu4vHzF9-vrt42QnUoGUrEDLR",
-    titulo: "Tutorial: Cómo borrar caché",
-  },
-  6: {
     url: "https://drive.google.com/uc?export=download&id=1-tVGXmw_NqvBqTgX7Wkc0nMURgLXSOrh",
     titulo: "Tutorial: Recuperar contraseña ATIPOP",
   },
