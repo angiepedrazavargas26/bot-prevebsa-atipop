@@ -178,8 +178,8 @@ const VIDEOS_PREVEBSA = {
     titulo: "Tutorial: Cómo borrar caché",
   },
   5: {
-    url: "https://atisga.blob.core.windows.net/atitotem/f3d335d3-b7c4-4f43-b3d2-b7020629c0f4.mp4",
-    titulo: "Tutorial: Cómo cambiar contraseña",
+    url: "https://atisga.blob.core.windows.net/atitotem/c1a3c29a-2379-4115-8713-1f2506452b1b.mp4",
+    titulo: "Tutorial: inspeccion vehiculo",
   },
 };
 
