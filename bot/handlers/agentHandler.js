@@ -1,37 +1,88 @@
 // Procesa comandos de agentes/asesores y reenvío de mensajes y media entre agentes y usuarios.
 // Maneja: #agente, #rechazar, #bot, #status y retransmisión de texto/media según estado.
+// Aceptación de casos dinámica vía menú interactivo en #status.
 const {
   sendWhatsApp,
+  sendInteractiveList,
 } = require("../services/whatsapp");
 const { getSession } = require("../session");
 const { sendMenuPrincipal } = require("../menus/interactive");
 const { MENSAJE_AGENTE } = require("../menus/constants");
 
-async function handleAgentMessage({ phone, text, tipo, message, modoHumano, agenteActivo, AGENTES }) {
-  if (text.startsWith("#agente ")) {
-    const cliente = text.split("#agente ")[1].trim();
-    let asignadoA = null;
-    for (const [agente, cli] of agenteActivo.entries()) {
-      if (cli === cliente) {
-        asignadoA = agente;
+// Menú dinámico usado en avisos sin caso activo / caso ya aceptado.
+// La opción "Consultar casos disponibles" envía internamente el #status.
+async function sendMenuCasosDisponibles(phone, cuerpo) {
+  return sendInteractiveList(
+    phone,
+    cuerpo,
+    "Ver opciones",
+    [
+      {
+        id: "status",
+        title: "Consultar casos disponibles",
+        description: "Ver la lista de casos y aceptar uno",
+      },
+    ],
+    "Toque una opción.",
+  );
+}
+
+// Acepta un caso para el asesor `phone`. Valida que no haya sido aceptado por otro.
+async function aceptarCaso({ phone, cliente }) {
+  let asignadoA = null;
+  for (const [agente, cli] of agenteActivo.entries()) {
+    if (cli === cliente) {
+      asignadoA = agente;
+      break;
+    }
+  }
+  if (asignadoA && asignadoA !== phone) {
+    await sendMenuCasosDisponibles(
+      phone,
+      `⚠️ El caso de +${cliente} ya fue aceptado por otro asesor. No puede atenderlo.`,
+    );
+    return true;
+  }
+  if (asignadoA === phone) return true;
+
+  modoHumano.add(cliente);
+  agenteActivo.set(phone, cliente);
+  await sendWhatsApp(phone, `*Asesor activo* — Atendiendo a +${cliente}\n\nEscriba normalmente y sus mensajes llegarán al usuario.\nPara terminar escriba: *#bot*`);
+  await sendWhatsApp(cliente, "Un asesor de ATI está disponible. ¿En qué le puedo ayudar?");
+  for (const agente of AGENTES) {
+    if (agente !== phone) {
+      await sendWhatsApp(agente, `✅ El caso de +${cliente} ya fue aceptado por otro asesor. No es necesario atenderlo.`);
+    }
+  }
+  return true;
+}
+
+// Construye la lista de casos disponibles (en modoHumano y aún no asignados).
+function obtenerCasosDisponibles() {
+  const casos = [];
+  for (const cli of modoHumano) {
+    let asignado = false;
+    for (const c of agenteActivo.values()) {
+      if (c === cli) {
+        asignado = true;
         break;
       }
     }
-    if (asignadoA && asignadoA !== phone) {
-      await sendWhatsApp(phone, `⚠️ El caso de +${cliente} ya fue aceptado por otro asesor.`);
-      return;
-    }
-    if (asignadoA === phone) return;
+    if (!asignado) casos.push(cli);
+  }
+  return casos;
+}
 
-    modoHumano.add(cliente);
-    agenteActivo.set(phone, cliente);
-    await sendWhatsApp(phone, `*Asesor activo* — Atendiendo a +${cliente}\n\nEscriba normalmente y sus mensajes llegarán al usuario.\nPara terminar escriba: *#bot*`);
-    await sendWhatsApp(cliente, "Un asesor de ATI está disponible. ¿En qué le puedo ayudar?");
-    for (const agente of AGENTES) {
-      if (agente !== phone) {
-        await sendWhatsApp(agente, `✅ El caso de +${cliente} ya fue aceptado por otro asesor. No es necesario atenderlo.`);
-      }
-    }
+async function handleAgentMessage({ phone, text, tipo, message, modoHumano, agenteActivo, AGENTES }) {
+  if (text.startsWith("#agente ")) {
+    const cliente = text.split("#agente ")[1].trim();
+    await aceptarCaso({ phone, cliente });
+    return;
+  }
+
+  if (text.startsWith("aceptar:")) {
+    const cliente = text.split("aceptar:")[1].trim();
+    await aceptarCaso({ phone, cliente });
     return;
   }
 
@@ -55,7 +106,7 @@ async function handleAgentMessage({ phone, text, tipo, message, modoHumano, agen
     return;
   }
 
-  if (text === "#status") {
+  if (text === "#status" || text === "status") {
     const clienteActivo = agenteActivo.get(phone);
     let mensaje = "📊 *Estado del asesor*\n\n";
     if (clienteActivo) {
@@ -66,31 +117,24 @@ async function handleAgentMessage({ phone, text, tipo, message, modoHumano, agen
       mensaje += "· En chat con cliente: *NO*\n";
     }
 
-    const casosDisponibles = [];
-    for (const cli of modoHumano) {
-      let asignado = false;
-      for (const c of agenteActivo.values()) {
-        if (c === cli) {
-          asignado = true;
-          break;
-        }
-      }
-      if (!asignado) casosDisponibles.push(cli);
-    }
+    const casosDisponibles = obtenerCasosDisponibles().slice(0, 10);
 
     if (casosDisponibles.length > 0) {
-      mensaje += `\n· Casos disponibles (${casosDisponibles.length}):\n`;
-      for (const cli of casosDisponibles) {
+      const rows = casosDisponibles.map((cli) => {
         const s = getSession(cli);
         const nombre = s.nombre ? s.nombre : `+${cli}`;
-        mensaje += `  ▸ ${nombre} — +${cli}\n`;
-      }
-      mensaje += "\nPara atender un caso escriba: *#agente <número>*";
+        return {
+          id: `aceptar:${cli}`,
+          title: nombre,
+          description: `+${cli}`,
+        };
+      });
+      mensaje += `\n· Casos disponibles (${casosDisponibles.length}). Toque un caso para aceptarlo:`;
+      await sendInteractiveList(phone, mensaje, "Aceptar caso", rows, "Toque un caso para atenderlo.");
     } else {
       mensaje += "\n· No hay casos disponibles en este momento.";
+      await sendWhatsApp(phone, mensaje);
     }
-
-    await sendWhatsApp(phone, mensaje);
     return;
   }
 
@@ -106,7 +150,10 @@ async function handleAgentMessage({ phone, text, tipo, message, modoHumano, agen
     return;
   }
 
-  await sendWhatsApp(phone, "⚠️ No tenés ningún caso activo. Escribí *#agente <número>* para atender a un cliente.");
+  await sendMenuCasosDisponibles(
+    phone,
+    "⚠️ No tenés ningún caso activo. Escribí *#agente <número>* para atender a un cliente o consulte los casos disponibles.",
+  );
   return false;
 }
 
