@@ -177,10 +177,6 @@ const VIDEOS_PREVEBSA = {
     url: "https://drive.google.com/uc?export=download&id=1K-F66G0Mu4vHzF9-vrt42QnUoGUrEDLR",
     titulo: "Tutorial: Cómo borrar caché",
   },
-  5: {
-    url: "https://atisga.blob.core.windows.net/atitotem/c1a3c29a-2379-4115-8713-1f2506452b1b.mp4",
-    titulo: "Tutorial: inspeccion vehiculo",
-  },
 };
 
 const VIDEOS_ATIPOP = {

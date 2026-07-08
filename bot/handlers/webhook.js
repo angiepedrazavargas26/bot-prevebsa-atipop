@@ -108,13 +108,6 @@ async function processIncomingMessage(body) {
         return;
       }
       if (text === "#bot") {
-        await sendWhatsApp(
-          phone,
-          "Caso rechazado. Seguirás disponible para otros casos.",
-        );
-        return;
-      }
-      if (text === "#bot") {
         const cliente = agenteActivo.get(phone);
         if (cliente) {
           modoHumano.delete(cliente);
