@@ -26,11 +26,45 @@ function formatoTamano(bytes) {
   return bytes + " B";
 }
 
+const DEFAULT_TIMEOUT = 120_000;
+
+async function fetchWithTimeout(url, options = {}, timeout = DEFAULT_TIMEOUT) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeout);
+  try {
+    const res = await fetch(url, { ...options, signal: controller.signal });
+    return res;
+  } catch (e) {
+    if (e.name === "AbortError") {
+      throw new Error(`La solicitud a ${new URL(url).hostname} excedió el tiempo límite (${timeout / 1000}s)`);
+    }
+    throw e;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function retryFetch(url, options, timeout, maxRetries = 3) {
+  let lastError;
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      const res = await fetchWithTimeout(url, options, timeout);
+      return res;
+    } catch (e) {
+      lastError = e;
+      if (attempt < maxRetries) {
+        await new Promise((r) => setTimeout(r, attempt * 1000));
+      }
+    }
+  }
+  throw lastError;
+}
+
 async function descargarDesdeDrive(url) {
   const extraerId = (u) => (u.match(/id=([^&]+)/) || [])[1];
 
   const intentar = async (u) => {
-    const res = await fetch(u, { redirect: "follow" });
+    const res = await fetchWithTimeout(u, { redirect: "follow" });
     const contentType = res.headers.get("content-type") || "";
     if (!res.ok || contentType.includes("text/html")) return { html: await res.text() };
     const buffer = Buffer.from(await res.arrayBuffer());
@@ -52,13 +86,13 @@ async function descargarDesdeDrive(url) {
 }
 
 async function descargarDesdeMediaId(mediaId) {
-  const infoRes = await fetch(
+  const infoRes = await fetchWithTimeout(
     `${WHATSAPP_API}/${mediaId}?phone_number_id=${process.env.PHONE_NUMBER_ID}&access_token=${process.env.WHATSAPP_TOKEN}`,
   );
   const info = await infoRes.json();
   if (info.error) throw new Error(info.error.message);
 
-  const dlRes = await fetch(info.url);
+  const dlRes = await fetchWithTimeout(info.url);
   if (!dlRes.ok) throw new Error("No se pudo descargar el medio desde WhatsApp");
   const buffer = Buffer.from(await dlRes.arrayBuffer());
   const mime =
@@ -69,7 +103,7 @@ async function descargarDesdeMediaId(mediaId) {
 }
 
 async function subirMedia(buffer, mime) {
-  const initRes = await fetch(`${WHATSAPP_API}/${process.env.PHONE_NUMBER_ID}/media`, {
+  const initRes = await fetchWithTimeout(`${WHATSAPP_API}/${process.env.PHONE_NUMBER_ID}/media`, {
     method: "POST",
     headers: authHeaders(),
     body: JSON.stringify({
@@ -80,7 +114,7 @@ async function subirMedia(buffer, mime) {
   const initData = await initRes.json();
   if (initData.error) throw new Error(initData.error.message);
 
-  const uploadRes = await fetch(initData.url, {
+  const uploadRes = await fetchWithTimeout(initData.url, {
     method: "POST",
     headers: { "Content-Type": mime },
     body: buffer,
@@ -102,7 +136,7 @@ async function enviarMediaPorId(to, tipo, mediaId, caption, filename) {
     body[tipo].caption = caption;
   }
 
-  const res = await fetch(messagesUrl(), {
+  const res = await fetchWithTimeout(messagesUrl(), {
     method: "POST",
     headers: authHeaders(),
     body: JSON.stringify(body),
@@ -127,7 +161,7 @@ function sanitizeInteractiveRows(rows) {
 }
 
 async function sendWhatsApp(to, message) {
-  const response = await fetch(messagesUrl(), {
+  const response = await fetchWithTimeout(messagesUrl(), {
     method: "POST",
     headers: authHeaders(),
     body: JSON.stringify({
@@ -167,7 +201,7 @@ async function sendInteractiveList(to, bodyText, buttonText, rows, footerText) {
   const MAX_RETRIES = 3;
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
     try {
-      const res = await fetch(messagesUrl(), {
+      const res = await fetchWithTimeout(messagesUrl(), {
         method: "POST",
         headers: authHeaders(),
         body: JSON.stringify(payload),
@@ -205,7 +239,35 @@ async function sendInteractiveList(to, bodyText, buttonText, rows, footerText) {
 async function sendVideoMessage(to, video) {
   if (!video) return;
   try {
-    const { buffer, mime } = await descargarDesdeDrive(video.url);
+    const { buffer, mime } = await retryFetch(
+      video.url,
+      { redirect: "follow" },
+      120_000,
+    ).then(async (res) => {
+      const contentType = res.headers.get("content-type") || "";
+      if (!res.ok || contentType.includes("text/html")) {
+        const html = contentType.includes("text/html") ? await res.text() : "";
+        if (html.includes("confirm=")) {
+          const confirm = (html.match(/confirm=([0-9A-Za-z_-]+)/) || [])[1] || "t";
+          const id = video.url.split("id=")[1];
+          const retryRes = await fetchWithTimeout(
+            `https://drive.google.com/uc?export=download&id=${id}&confirm=${confirm}`,
+            { redirect: "follow" },
+            120_000,
+          );
+          const retryContentType = retryRes.headers.get("content-type") || "";
+          if (!retryRes.ok || retryContentType.includes("text/html")) {
+            throw new Error("Drive bloqueó la descarga del archivo");
+          }
+          const buf = Buffer.from(await retryRes.arrayBuffer());
+          return { buffer: buf, mime: retryContentType.split(";")[0].trim() };
+        }
+        throw new Error("Drive bloqueó la descarga del archivo");
+      }
+      const buf = Buffer.from(await res.arrayBuffer());
+      return { buffer: buf, mime: contentType.split(";")[0].trim() };
+    });
+
     const mediaMime = mime && mime.startsWith("video/") ? mime : "video/mp4";
     const mediaId = await subirMedia(buffer, mediaMime);
     await enviarMediaPorId(to, "video", mediaId, video.titulo);
@@ -308,7 +370,7 @@ async function reenviarMediaAlAsesor(agentePhone, clientePhone, message) {
     try {
       await sendWhatsApp(
         agentePhone,
-        `⚠️ Error al reenviar el ${tipoLabel} del usuario +${clientePhone}. Revíselo directamente en WhatsApp.`,
+        `⚠️ Error al reenviar el ${tipoLabel} del usuario +${clientePhone} (${e.message}). Revíselo directamente en WhatsApp.`,
       );
     } catch (_) {}
   }

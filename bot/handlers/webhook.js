@@ -155,6 +155,47 @@ async function processIncomingMessage(body) {
         }
         return;
       }
+      if (text === "#status") {
+        const clienteActivo = agenteActivo.get(phone);
+        let mensaje = "📊 *Estado del asesor*\n\n";
+        if (clienteActivo) {
+          const sActivo = getSession(clienteActivo);
+          const nombreActivo = sActivo.nombre
+            ? sActivo.nombre
+            : `+${clienteActivo}`;
+          mensaje += `· En chat con cliente: *SÍ* (${nombreActivo} — +${clienteActivo})\n`;
+        } else {
+          mensaje += "· En chat con cliente: *NO*\n";
+        }
+
+        const casosDisponibles = [];
+        for (const cli of modoHumano) {
+          let asignado = false;
+          for (const c of agenteActivo.values()) {
+            if (c === cli) {
+              asignado = true;
+              break;
+            }
+          }
+          if (!asignado) casosDisponibles.push(cli);
+        }
+
+        if (casosDisponibles.length > 0) {
+          mensaje += `\n· Casos disponibles (${casosDisponibles.length}):\n`;
+          for (const cli of casosDisponibles) {
+            const s = getSession(cli);
+            const nombre = s.nombre ? s.nombre : `+${cli}`;
+            mensaje += `  ▸ ${nombre} — +${cli}\n`;
+          }
+          mensaje +=
+            "\nPara atender un caso escriba: *#agente <número>*";
+        } else {
+          mensaje += "\n· No hay casos disponibles en este momento.";
+        }
+
+        await sendWhatsApp(phone, mensaje);
+        return;
+      }
       if (agenteActivo.has(phone)) {
         const clienteActivo = agenteActivo.get(phone);
         if (tipo === "text" || tipo === "interactive") {
