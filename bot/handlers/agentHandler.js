@@ -1,5 +1,8 @@
 // Procesa comandos de agentes/asesores y reenvío de mensajes y media entre agentes y usuarios.
 // Maneja: #agente, #rechazar, #bot, #status y retransmisión de texto/media según estado.
+const {
+  sendWhatsApp,
+} = require("../services/whatsapp");
 const { getSession } = require("../session");
 const { sendMenuPrincipal } = require("../menus/interactive");
 const { MENSAJE_AGENTE } = require("../menus/constants");
@@ -103,6 +106,7 @@ async function handleAgentMessage({ phone, text, tipo, message, modoHumano, agen
     return;
   }
 
+  await sendWhatsApp(phone, "⚠️ No tenés ningún caso activo. Escribí *#agente <número>* para atender a un cliente.");
   return false;
 }
 
