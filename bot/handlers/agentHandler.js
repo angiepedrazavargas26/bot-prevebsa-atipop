@@ -27,8 +27,30 @@ async function sendMenuCasosDisponibles(phone, cuerpo) {
   );
 }
 
+// Menú dinámico para cuando el asesor ya tiene un caso activo y quiere aceptar otro.
+// La opción "Cerrar caso actual" envía internamente el #bot.
+async function sendMenuCerrarCaso(phone, clienteActivo) {
+  return sendInteractiveList(
+    phone,
+    `⚠️ Ya tienes un caso activo (con +${clienteActivo}). Debes cerrarlo antes de aceptar otro.`,
+    "Ver opciones",
+    [
+      {
+        id: "bot",
+        title: "Cerrar caso actual",
+        description: "Finaliza el caso y reactiva el bot",
+      },
+    ],
+    "Toque una opción.",
+  );
+}
+
 // Acepta un caso para el asesor `phone`. Valida que no haya sido aceptado por otro.
 async function aceptarCaso({ phone, cliente, modoHumano, agenteActivo, AGENTES }) {
+  if (agenteActivo.has(phone)) {
+    await sendMenuCerrarCaso(phone, agenteActivo.get(phone));
+    return true;
+  }
   let asignadoA = null;
   for (const [agente, cli] of agenteActivo.entries()) {
     if (cli === cliente) {
@@ -91,7 +113,7 @@ async function handleAgentMessage({ phone, text, tipo, message, modoHumano, agen
     return;
   }
 
-  if (text === "#bot") {
+  if (text === "#bot" || text === "bot") {
     const cliente = agenteActivo.get(phone);
     if (cliente) {
       modoHumano.delete(cliente);
