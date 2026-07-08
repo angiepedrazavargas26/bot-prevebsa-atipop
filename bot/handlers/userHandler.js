@@ -336,11 +336,11 @@ async function processUserMessage({ phone, textLower, text, session, modoHumano,
     return true;
   }
 
-  if (session.nombre && text === "#") {
+  if (text === "#") {
     return requestAgentAssistance({ phone, session, text, modoHumano });
   }
   const palabrasAsesor = ["asesor", "agente", "humano", "hablar con alguien"];
-  if (session.nombre && palabrasAsesor.some((p) => textLower.includes(p))) {
+  if (palabrasAsesor.some((p) => textLower.includes(p))) {
     return requestAgentAssistance({ phone, session, text, modoHumano });
   }
 
