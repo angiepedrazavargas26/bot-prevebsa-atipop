@@ -38,52 +38,69 @@ async function sendWhatsApp(to, message) {
 
 async function sendInteractiveList(to, bodyText, buttonText, rows, footerText) {
   const sanitizedRows = sanitizeInteractiveRows(rows);
-  try {
-    const res = await fetch(
-      `https://graph.facebook.com/v19.0/${process.env.PHONE_NUMBER_ID}/messages`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${process.env.WHATSAPP_TOKEN}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          messaging_product: "whatsapp",
-          to,
-          type: "interactive",
-          interactive: {
-            type: "list",
-            body: { text: bodyText },
-            action: {
-              button: buttonText,
-              sections: [
-                {
-                  title: "Opciones",
-                  rows: sanitizedRows,
-                },
-              ],
-            },
-            footer: footerText ? { text: footerText } : undefined,
+  const payload = {
+    messaging_product: "whatsapp",
+    to,
+    type: "interactive",
+    interactive: {
+      type: "list",
+      body: { text: bodyText },
+      action: {
+        button: buttonText,
+        sections: [
+          {
+            title: "Opciones",
+            rows: sanitizedRows,
           },
-        }),
+        ],
       },
-    );
-    const data = await res.json();
-    if (!res.ok || data.error) {
-      throw new Error(
-        data.error?.message || "WhatsApp interactive list failed",
+      footer: footerText ? { text: footerText } : undefined,
+    },
+  };
+
+  let lastError;
+  const MAX_RETRIES = 3;
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      const res = await fetch(
+        `https://graph.facebook.com/v19.0/${process.env.PHONE_NUMBER_ID}/messages`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${process.env.WHATSAPP_TOKEN}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(payload),
+        },
       );
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        lastError = new Error(
+          data.error?.message || "WhatsApp interactive list failed",
+        );
+        if (res.status === 429) {
+          await new Promise((r) => setTimeout(r, attempt * 1000));
+          continue;
+        }
+        throw lastError;
+      }
+      return;
+    } catch (error) {
+      lastError = error;
+      if (attempt < MAX_RETRIES) {
+        await new Promise((r) => setTimeout(r, attempt * 1000));
+      }
     }
-  } catch (error) {
-    console.error("sendInteractiveList error:", error.message);
-    const text = `${bodyText}\n\n${sanitizedRows
-      .map(
-        (row) =>
-          `${row.id}. ${row.title}${row.description ? "\n" + row.description : ""}`,
-      )
-      .join("\n\n")}`;
-    await sendWhatsApp(to, text);
   }
+
+  console.error("sendInteractiveList error (fallback a texto):", lastError?.message);
+  const text = `${bodyText}\n\n${sanitizedRows
+    .map(
+      (row) =>
+        `${row.id}. ${row.title}${row.description ? "\n" + row.description : ""}`,
+    )
+    .join("\n\n")}`;
+  await sendWhatsApp(to, text);
 }
 
 async function sendVideoMessage(to, video) {
