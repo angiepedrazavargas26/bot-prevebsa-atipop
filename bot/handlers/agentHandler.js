@@ -28,7 +28,7 @@ async function sendMenuCasosDisponibles(phone, cuerpo) {
 }
 
 // Acepta un caso para el asesor `phone`. Valida que no haya sido aceptado por otro.
-async function aceptarCaso({ phone, cliente }) {
+async function aceptarCaso({ phone, cliente, modoHumano, agenteActivo, AGENTES }) {
   let asignadoA = null;
   for (const [agente, cli] of agenteActivo.entries()) {
     if (cli === cliente) {
@@ -58,7 +58,7 @@ async function aceptarCaso({ phone, cliente }) {
 }
 
 // Construye la lista de casos disponibles (en modoHumano y aún no asignados).
-function obtenerCasosDisponibles() {
+function obtenerCasosDisponibles(modoHumano, agenteActivo) {
   const casos = [];
   for (const cli of modoHumano) {
     let asignado = false;
@@ -76,13 +76,13 @@ function obtenerCasosDisponibles() {
 async function handleAgentMessage({ phone, text, tipo, message, modoHumano, agenteActivo, AGENTES }) {
   if (text.startsWith("#agente ")) {
     const cliente = text.split("#agente ")[1].trim();
-    await aceptarCaso({ phone, cliente });
+    await aceptarCaso({ phone, cliente, modoHumano, agenteActivo, AGENTES });
     return;
   }
 
   if (text.startsWith("aceptar:")) {
     const cliente = text.split("aceptar:")[1].trim();
-    await aceptarCaso({ phone, cliente });
+    await aceptarCaso({ phone, cliente, modoHumano, agenteActivo, AGENTES });
     return;
   }
 
@@ -117,7 +117,7 @@ async function handleAgentMessage({ phone, text, tipo, message, modoHumano, agen
       mensaje += "· En chat con cliente: *NO*\n";
     }
 
-    const casosDisponibles = obtenerCasosDisponibles().slice(0, 10);
+    const casosDisponibles = obtenerCasosDisponibles(modoHumano, agenteActivo).slice(0, 10);
 
     if (casosDisponibles.length > 0) {
       const rows = casosDisponibles.map((cli) => {
