@@ -4,6 +4,8 @@
 const {
   sendWhatsApp,
   sendInteractiveList,
+  reenviarMediaA,
+  reenviarMediaAlAsesor,
 } = require("../services/whatsapp");
 const { getSession } = require("../session");
 const { sendMenuPrincipal } = require("../menus/interactive");
