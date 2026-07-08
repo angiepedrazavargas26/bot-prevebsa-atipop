@@ -119,8 +119,9 @@ async function processIncomingMessage(body) {
           );
           await sendWhatsApp(
             cliente,
-            "El asistente virtual está disponible nuevamente.\n\nEscriba *menu* si necesita más ayuda.",
+            "El asistente virtual está disponible nuevamente. 👇",
           );
+          await sendMenuPrincipal(cliente);
         } else {
           await sendWhatsApp(
             phone,
