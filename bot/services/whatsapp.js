@@ -133,6 +133,44 @@ async function sendVideoMessage(to, video) {
   }
 }
 
+async function reenviarMediaA(destinoPhone, message) {
+  const tipo = message.type;
+  const mediaObj = message[tipo];
+  if (!mediaObj) return;
+
+  try {
+    const body = {
+      messaging_product: "whatsapp",
+      to: destinoPhone,
+      type: tipo,
+    };
+
+    body[tipo] = { id: mediaObj.id };
+    if (mediaObj.caption && tipo !== "audio" && tipo !== "sticker") {
+      body[tipo].caption = mediaObj.caption;
+    }
+
+    const res = await fetch(
+      `https://graph.facebook.com/v19.0/${process.env.PHONE_NUMBER_ID}/messages`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${process.env.WHATSAPP_TOKEN}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(body),
+      },
+    );
+
+    const data = await res.json();
+    if (data.error) {
+      console.error("Error reenviando media:", data.error.message);
+    }
+  } catch (e) {
+    console.error("reenviarMediaA error:", e.message);
+  }
+}
+
 async function reenviarMediaAlAsesor(agentePhone, clientePhone, message) {
   const tipo = message.type;
   const mediaObj = message[tipo];
@@ -201,5 +239,6 @@ module.exports = {
   sendInteractiveList,
   sendVideoMessage,
   reenviarMediaAlAsesor,
+  reenviarMediaA,
   OPCION_ASESOR,
 };

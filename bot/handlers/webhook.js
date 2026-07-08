@@ -20,6 +20,7 @@ const {
   sendInteractiveList,
   sendVideoMessage,
   reenviarMediaAlAsesor,
+  reenviarMediaA,
   OPCION_ASESOR,
 } = require("../services/whatsapp");
 const { notificarAgentes, getModoHumano, getAgenteActivo, getAgentes } = require("../services/agent");
@@ -77,10 +78,10 @@ async function processIncomingMessage(body) {
         message.interactive?.list_reply?.id ||
         message.interactive?.list_reply?.title ||
         "";
-    } else {
+    } else if (!AGENTES.includes(phone)) {
       return;
     }
-    if (!text) return;
+    if (!text && !AGENTES.includes(phone)) return;
     const session = getSession(phone);
 
     console.log(`📩 De ${phone}: ${text}`);
@@ -156,10 +157,18 @@ async function processIncomingMessage(body) {
       }
       if (agenteActivo.has(phone)) {
         const clienteActivo = agenteActivo.get(phone);
-        await sendWhatsApp(clienteActivo, `*Asesor ATI:*\n${text}`);
-        console.log(`Asesor ${phone} → Cliente ${clienteActivo}: ${text}`);
+        if (tipo === "text" || tipo === "interactive") {
+          await sendWhatsApp(clienteActivo, `*Asesor ATI:*\n${text}`);
+          console.log(`Asesor ${phone} → Cliente ${clienteActivo}: ${text}`);
+        } else {
+          await reenviarMediaA(clienteActivo, message);
+          console.log(
+            `Asesor ${phone} → Cliente ${clienteActivo}: media (${tipo})`,
+          );
+        }
         return;
       }
+      return;
     }
 
     if (modoHumano.has(phone)) {
