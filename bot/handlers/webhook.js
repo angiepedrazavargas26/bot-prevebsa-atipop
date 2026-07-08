@@ -88,6 +88,22 @@ async function processIncomingMessage(body) {
     if (AGENTES.includes(phone)) {
       if (text.startsWith("#agente ")) {
         const cliente = text.split("#agente ")[1].trim();
+        let asignadoA = null;
+        for (const [agente, cli] of agenteActivo.entries()) {
+          if (cli === cliente) {
+            asignadoA = agente;
+            break;
+          }
+        }
+        if (asignadoA && asignadoA !== phone) {
+          await sendWhatsApp(
+            phone,
+            `⚠️ El caso de +${cliente} ya fue aceptado por otro asesor.`,
+          );
+          return;
+        }
+        if (asignadoA === phone) return;
+
         modoHumano.add(cliente);
         agenteActivo.set(phone, cliente);
         await sendWhatsApp(
@@ -98,6 +114,14 @@ async function processIncomingMessage(body) {
           cliente,
           "Un asesor de ATI está disponible. ¿En qué le puedo ayudar?",
         );
+        for (const agente of AGENTES) {
+          if (agente !== phone) {
+            await sendWhatsApp(
+              agente,
+              `✅ El caso de +${cliente} ya fue aceptado por otro asesor. No es necesario atenderlo.`,
+            );
+          }
+        }
         return;
       }
       if (text === "#rechazar") {
