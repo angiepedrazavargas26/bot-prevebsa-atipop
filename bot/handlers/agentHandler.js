@@ -67,6 +67,13 @@ async function aceptarCaso({ phone, cliente, modoHumano, agenteActivo, AGENTES }
     );
     return true;
   }
+  if (!modoHumano.has(cliente)) {
+    await sendMenuCasosDisponibles(
+      phone,
+      `⚠️ El caso de +${cliente} ya fue cerrado o ya no está disponible. Consulte los casos activos.`,
+    );
+    return true;
+  }
   if (asignadoA === phone) return true;
 
   modoHumano.add(cliente);
