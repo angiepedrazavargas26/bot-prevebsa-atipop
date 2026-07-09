@@ -22,6 +22,9 @@ async function notificarAgentes(phone, nombre, texto) {
   ];
   for (const agente of AGENTES) {
     try {
+      if (!agenteActivo.has(agente)) {
+        await sendWhatsApp(agente, `▣ *NUEVO CASO DISPONIBLE*\n\n· Usuario: *${nombre}* (+${phone})\n\nEscriba *#agente ${phone}* para atender o *#status* para ver todos los casos.`);
+      }
       await sendInteractiveList(
         agente,
         bodyText,
