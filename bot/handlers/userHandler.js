@@ -8,7 +8,11 @@ const {
   sendMenuTutorialesPrevebsa,
   sendMenuTutorialesAtipop,
 } = require("../menus/interactive");
-const { sendWhatsApp, sendVideoMessage, OPCION_ASESOR } = require("../services/whatsapp");
+const {
+  sendWhatsApp,
+  sendVideoMessage,
+  OPCION_ASESOR,
+} = require("../services/whatsapp");
 const { notificarAgentes } = require("../services/agent");
 const { askClaude } = require("../services/claude");
 const {
@@ -35,28 +39,159 @@ const frasesFallo = [
 
 function detectarNombre(text, session) {
   const matchNombre = text.match(
-    /(?:(?:me llamo|soy|mi nombre es|habla (?:con|el|la))\s+(?:(?:el|la)?\s*(?:funcionario|asesor|técnico|operario|supervisor|jefe|coordinador|trabajador|empleado|funcionaria|asesora|técnica|operaria|supervisora|jefa|coordinadora|trabajadora|empleada|ingeniero|ingeniera|auxiliar|administrativo|administrativa|profesional|especialista|analista|consultor|consultora|doctor|doctora|licenciado|licenciada|abogado|abogada|arquitecto|arquitecta)?(?:\s+de\s+\w+)?\s+)?([A-Za-zÁÉÍÓÚáéíóúñÑ]+(?:\s+[A-Za-zÁÉÍÓÚáéíóúñÑ]+){0,2}))/i
+    /(?:(?:me llamo|soy|mi nombre es|habla (?:con|el|la))\s+(?:(?:el|la)?\s*(?:funcionario|asesor|técnico|operario|supervisor|jefe|coordinador|trabajador|empleado|funcionaria|asesora|técnica|operaria|supervisora|jefa|coordinadora|trabajadora|empleada|ingeniero|ingeniera|auxiliar|administrativo|administrativa|profesional|especialista|analista|consultor|consultora|doctor|doctora|licenciado|licenciada|abogado|abogada|arquitecto|arquitecta)?(?:\s+de\s+\w+)?\s+)?([A-Za-zÁÉÍÓÚáéíóúñÑ]+(?:\s+[A-Za-zÁÉÍÓÚáéíóúñÑ]+){0,2}))/i,
   );
   if (matchNombre) {
     const stopWords = new Set([
-      "es","la","el","de","y","en","con","por","para","del","al","lo","su","mi","tu",
-      "un","una","unos","unas","los","las","que","le","les","se","si","no","mas","muy",
-      "tan","ya","fue","ser","era","hay","vez","bien","aquí","alli","allí","cada","otro",
-      "otra","sobre","entre","hasta","desde","cuando","donde","como","cual","quien","cuyo",
-      "tiene","tener","dijo","dice","hace","hacer","sido","está","estar","tengo","puede",
-      "poder","quiere","querer","necesita","necesitar","sigue","seguir","cuenta","contar",
-      "informa","informar","avisa","avisar","comenta","comentar","expresa","expresar",
-      "relata","relatar","explica","explicar","describe","describir","detalla","detallar",
-      "menciona","mencionar","indica","indicar","señala","señalar","precisa","precisar",
-      "aclara","aclarar","afirma","afirmar","asegura","asegurar","refiere","referir",
-      "refirió","comunicó","comunicar","informó","manifestó","manifestar","señaló","indicó",
-      "precisó","afirmó","aseguró","asi","también","solo","solo","pues","porque","aunque",
-      "aunque","mientras","despues","después","antes","luego","entonces","ademas","además",
-      "incluso","aunque","aunque","debido","causa","razon","razón","motivo","fin","fin",
-      "solo","sólo",
+      "es",
+      "la",
+      "el",
+      "de",
+      "y",
+      "en",
+      "con",
+      "por",
+      "para",
+      "del",
+      "al",
+      "lo",
+      "su",
+      "mi",
+      "tu",
+      "un",
+      "una",
+      "unos",
+      "unas",
+      "los",
+      "las",
+      "que",
+      "le",
+      "les",
+      "se",
+      "si",
+      "no",
+      "mas",
+      "muy",
+      "tan",
+      "ya",
+      "fue",
+      "ser",
+      "era",
+      "hay",
+      "vez",
+      "bien",
+      "aquí",
+      "alli",
+      "allí",
+      "cada",
+      "otro",
+      "otra",
+      "sobre",
+      "entre",
+      "hasta",
+      "desde",
+      "cuando",
+      "donde",
+      "como",
+      "cual",
+      "quien",
+      "cuyo",
+      "tiene",
+      "tener",
+      "dijo",
+      "dice",
+      "hace",
+      "hacer",
+      "sido",
+      "está",
+      "estar",
+      "tengo",
+      "puede",
+      "poder",
+      "quiere",
+      "querer",
+      "necesita",
+      "necesitar",
+      "sigue",
+      "seguir",
+      "cuenta",
+      "contar",
+      "informa",
+      "informar",
+      "avisa",
+      "avisar",
+      "comenta",
+      "comentar",
+      "expresa",
+      "expresar",
+      "relata",
+      "relatar",
+      "explica",
+      "explicar",
+      "describe",
+      "describir",
+      "detalla",
+      "detallar",
+      "menciona",
+      "mencionar",
+      "indica",
+      "indicar",
+      "señala",
+      "señalar",
+      "precisa",
+      "precisar",
+      "aclara",
+      "aclarar",
+      "afirma",
+      "afirmar",
+      "asegura",
+      "asegurar",
+      "refiere",
+      "referir",
+      "refirió",
+      "comunicó",
+      "comunicar",
+      "informó",
+      "manifestó",
+      "manifestar",
+      "señaló",
+      "indicó",
+      "precisó",
+      "afirmó",
+      "aseguró",
+      "asi",
+      "también",
+      "solo",
+      "solo",
+      "pues",
+      "porque",
+      "aunque",
+      "aunque",
+      "mientras",
+      "despues",
+      "después",
+      "antes",
+      "luego",
+      "entonces",
+      "ademas",
+      "además",
+      "incluso",
+      "aunque",
+      "aunque",
+      "debido",
+      "causa",
+      "razon",
+      "razón",
+      "motivo",
+      "fin",
+      "fin",
+      "solo",
+      "sólo",
     ]);
     const palabras = matchNombre[1].trim().split(/\s+/);
-    const palabrasValidas = palabras.filter((p) => p.length > 1 && !stopWords.has(p.toLowerCase()));
+    const palabrasValidas = palabras.filter(
+      (p) => p.length > 1 && !stopWords.has(p.toLowerCase()),
+    );
     if (palabrasValidas.length > 0) {
       session.nombre = palabrasValidas.join(" ");
     }
@@ -88,7 +223,10 @@ async function sendVideoIfAvailable({ phone, text, videos }) {
   if (!video) return false;
   await sendWhatsApp(phone, "Enviando tutorial...");
   await sendVideoMessage(phone, video);
-  await sendWhatsApp(phone, "¿Necesita ayuda con algo más? Escriba *menu* para volver." + OPCION_ASESOR);
+  await sendWhatsApp(
+    phone,
+    "¿Necesita ayuda con algo más? Escriba *menu* para volver." + OPCION_ASESOR,
+  );
   return true;
 }
 
@@ -167,7 +305,13 @@ async function handleDetallePrevebsa({ phone, text, session }) {
     await sendWhatsApp(phone, match.respuesta);
     return true;
   }
-  const reply = await askClaude(detalle, session.history, session.nombre, CONTEXTOS[session.contexto], session.app);
+  const reply = await askClaude(
+    detalle,
+    session.history,
+    session.nombre,
+    CONTEXTOS[session.contexto],
+    session.app,
+  );
   session.history.push({ role: "assistant", content: reply });
   if (session.history.length > 12) session.history = session.history.slice(-12);
   await sendWhatsApp(phone, reply);
@@ -188,20 +332,39 @@ async function handleOpcionesPrevebsa({ phone, text, session }) {
     return handleDetallePrevebsa({ phone, text, session });
   }
   const ops = {
-    1: "prevebsa_1", 2: "prevebsa_2", 3: "prevebsa_3", 4: "prevebsa_4",
-    5: "prevebsa_5", 6: "prevebsa_6", 7: "prevebsa_7", 8: "prevebsa_8",
+    1: "prevebsa_1",
+    2: "prevebsa_2",
+    3: "prevebsa_3",
+    4: "prevebsa_4",
+    5: "prevebsa_5",
+    6: "prevebsa_6",
+    7: "prevebsa_7",
+    8: "prevebsa_8",
   };
   if (ops[text]) {
     session.contexto = ops[text];
     const preguntas = {
-      prevebsa_1: "¿Olvidó la contraseña, su usuario aparece inactivo, o no puede ingresar con sus credenciales?" + OPCION_ASESOR,
-      prevebsa_2: "¿No puede crear la planificación, se perdieron los datos, necesita reabrirla, o tiene otro inconveniente?" + OPCION_ASESOR,
-      prevebsa_3: "¿No puede crear la inspección, necesita reabrirla, o no aparece para asignarla al plan diario?" + OPCION_ASESOR,
-      prevebsa_4: "¿Cuál es el inconveniente con las observaciones?" + OPCION_ASESOR,
-      prevebsa_5: "¿Cuál es el inconveniente con los planes de acción?" + OPCION_ASESOR,
-      prevebsa_6: "¿Cuál es el inconveniente con el Módulo Proceso?" + OPCION_ASESOR,
-      prevebsa_7: "¿El inconveniente es con la configuración, las notificaciones, o el modo offline?" + OPCION_ASESOR,
-      prevebsa_8: "¿Cuál es el inconveniente con PREVEBSA? Cuénteme con detalle." + OPCION_ASESOR,
+      prevebsa_1:
+        "¿Olvidó la contraseña, su usuario aparece inactivo, o no puede ingresar con sus credenciales?" +
+        OPCION_ASESOR,
+      prevebsa_2:
+        "¿No puede crear la planificación, se perdieron los datos, necesita reabrirla, o tiene otro inconveniente?" +
+        OPCION_ASESOR,
+      prevebsa_3:
+        "¿No puede crear la inspección, necesita reabrirla, o no aparece para asignarla al plan diario?" +
+        OPCION_ASESOR,
+      prevebsa_4:
+        "¿Cuál es el inconveniente con las observaciones?" + OPCION_ASESOR,
+      prevebsa_5:
+        "¿Cuál es el inconveniente con los planes de acción?" + OPCION_ASESOR,
+      prevebsa_6:
+        "¿Cuál es el inconveniente con el Módulo Proceso?" + OPCION_ASESOR,
+      prevebsa_7:
+        "¿El inconveniente es con la configuración, las notificaciones, o el modo offline?" +
+        OPCION_ASESOR,
+      prevebsa_8:
+        "¿Cuál es el inconveniente con PREVEBSA? Cuénteme con detalle." +
+        OPCION_ASESOR,
     };
     await sendWhatsApp(phone, preguntas[session.contexto]);
     return true;
@@ -221,7 +384,13 @@ async function handleDetalleAtipop({ phone, text, session }) {
     await sendWhatsApp(phone, match.respuesta);
     return true;
   }
-  const reply = await askClaude(detalle, session.history, session.nombre, CONTEXTOS[session.contexto], session.app);
+  const reply = await askClaude(
+    detalle,
+    session.history,
+    session.nombre,
+    CONTEXTOS[session.contexto],
+    session.app,
+  );
   session.history.push({ role: "assistant", content: reply });
   if (session.history.length > 12) session.history = session.history.slice(-12);
   await sendWhatsApp(phone, reply);
@@ -242,20 +411,40 @@ async function handleOpcionesAtipop({ phone, text, session }) {
     return handleDetalleAtipop({ phone, text, session });
   }
   const ops = {
-    1: "atipop_1", 2: "atipop_2", 3: "atipop_3", 4: "atipop_4",
-    5: "atipop_5", 6: "atipop_6", 7: "atipop_7", 8: "atipop_8",
+    1: "atipop_1",
+    2: "atipop_2",
+    3: "atipop_3",
+    4: "atipop_4",
+    5: "atipop_5",
+    6: "atipop_6",
+    7: "atipop_7",
+    8: "atipop_8",
   };
   if (ops[text]) {
     session.contexto = ops[text];
     const preguntas = {
-      atipop_1: "¿El inconveniente es con el inicio de sesión con *correo y contraseña*, o con *FaceID*?" + OPCION_ASESOR,
-      atipop_2: "¿Cuál es el inconveniente con Mi Cuenta o Documentos?" + OPCION_ASESOR,
-      atipop_3: "¿Cuál es el inconveniente con el Reporte en Ruta?" + OPCION_ASESOR,
-      atipop_4: "¿Cuál es el inconveniente con Supervisiones e Inspecciones?" + OPCION_ASESOR,
-      atipop_5: "¿El inconveniente es con *Lecturas* (medidores, valores) o con *Equipos* (historial, devolutivos)?" + OPCION_ASESOR,
-      atipop_6: "¿La app no sincroniza, se queda pegada, o muestra información desactualizada?" + OPCION_ASESOR,
-      atipop_7: "¿El inconveniente es con la configuración, las alertas GPS, o algo más?" + OPCION_ASESOR,
-      atipop_8: "¿Cuál es el inconveniente con ATIPOP? Cuénteme con detalle." + OPCION_ASESOR,
+      atipop_1:
+        "¿El inconveniente es con el inicio de sesión con *correo y contraseña*, o con *FaceID*?" +
+        OPCION_ASESOR,
+      atipop_2:
+        "¿Cuál es el inconveniente con Mi Cuenta o Documentos?" + OPCION_ASESOR,
+      atipop_3:
+        "¿Cuál es el inconveniente con el Reporte en Ruta?" + OPCION_ASESOR,
+      atipop_4:
+        "¿Cuál es el inconveniente con Supervisiones e Inspecciones?" +
+        OPCION_ASESOR,
+      atipop_5:
+        "¿El inconveniente es con *Lecturas* (medidores, valores) o con *Equipos* (historial, devolutivos)?" +
+        OPCION_ASESOR,
+      atipop_6:
+        "¿La app no sincroniza, se queda pegada, o muestra información desactualizada?" +
+        OPCION_ASESOR,
+      atipop_7:
+        "¿El inconveniente es con la configuración, las alertas GPS, o algo más?" +
+        OPCION_ASESOR,
+      atipop_8:
+        "¿Cuál es el inconveniente con ATIPOP? Cuénteme con detalle." +
+        OPCION_ASESOR,
     };
     await sendWhatsApp(phone, preguntas[session.contexto]);
     return true;
@@ -265,6 +454,7 @@ async function handleOpcionesAtipop({ phone, text, session }) {
 
 const ENCUESTA_PASOS = [
   { key: "nombre", pregunta: "¿Cuál es su nombre completo?" },
+  { key: "correo", pregunta: "¿Cual es su correo vinculado a la aplicacion?" },
   { key: "aplicativo", pregunta: "¿Qué aplicativo le falla?" },
   { key: "version", pregunta: "¿Qué versión tiene instalada?" },
   { key: "seccion", pregunta: "¿En qué sección le falla?" },
@@ -280,7 +470,11 @@ async function requestAgentAssistance({ phone, session, text, modoHumano }) {
     session.encuestaPaso = 1;
   }
   if (session.encuestaPaso < ENCUESTA_PASOS.length) {
-    await sendWhatsApp(phone, "✓ Se le conectará con un asesor.\n\n" + ENCUESTA_PASOS[session.encuestaPaso].pregunta);
+    await sendWhatsApp(
+      phone,
+      "✓ Se le conectará con un asesor.\n\n" +
+        ENCUESTA_PASOS[session.encuestaPaso].pregunta,
+    );
   }
   return true;
 }
@@ -289,7 +483,11 @@ async function handleEsperandoNombre({ phone, text, session, modoHumano }) {
   session.nombre = text.charAt(0).toUpperCase() + text.slice(1).toLowerCase();
   session.encuestaPaso = null;
   await sendWhatsApp(phone, MENSAJE_AGENTE);
-  await notificarAgentes(phone, session.nombre, `Solicitud de asesor. Módulo: ${session.contexto || "menú principal"}.`);
+  await notificarAgentes(
+    phone,
+    session.nombre,
+    `Solicitud de asesor. Módulo: ${session.contexto || "menú principal"}.`,
+  );
   modoHumano.add(phone);
 }
 
@@ -309,7 +507,11 @@ async function handleEncuestaPaso({ phone, text, session, modoHumano }) {
   const encuestaTexto = Object.entries(session.encuestaRespuestas)
     .map(([key, value]) => `· ${key}: ${value}`)
     .join("\n");
-  await notificarAgentes(phone, nombre, `Encuesta de soporte:\n${encuestaTexto}`);
+  await notificarAgentes(
+    phone,
+    nombre,
+    `Encuesta de soporte:\n${encuestaTexto}`,
+  );
   await sendWhatsApp(phone, MENSAJE_AGENTE);
   modoHumano.add(phone);
   return true;
@@ -329,9 +531,24 @@ async function resolveWithKnowledgeOrClaude({ phone, text, session }) {
 
 const { forwardToAgent } = require("./agentHandler");
 
-async function processUserMessage({ phone, textLower, text, session, modoHumano, agenteActivo, AGENTES }) {
+async function processUserMessage({
+  phone,
+  textLower,
+  text,
+  session,
+  modoHumano,
+  agenteActivo,
+  AGENTES,
+}) {
   if (modoHumano.has(phone)) {
-    await forwardToAgent({ phone, text, modoHumano, agenteActivo, AGENTES, session });
+    await forwardToAgent({
+      phone,
+      text,
+      modoHumano,
+      agenteActivo,
+      AGENTES,
+      session,
+    });
     return true;
   }
 
@@ -342,7 +559,13 @@ async function processUserMessage({ phone, textLower, text, session, modoHumano,
   }
 
   if (["menu", "inicio", "hola", "start", "reiniciar"].includes(textLower)) {
-    Object.assign(session, { attempts: 0, history: [], contexto: null, menu: null, app: null });
+    Object.assign(session, {
+      attempts: 0,
+      history: [],
+      contexto: null,
+      menu: null,
+      app: null,
+    });
     await sendMenuPrincipal(phone);
     return true;
   }
@@ -375,7 +598,12 @@ async function processUserMessage({ phone, textLower, text, session, modoHumano,
   }
 
   if (!session.menu || session.menu === "principal") {
-    const principalHandled = await handleMainMenu({ phone, textLower, text, session });
+    const principalHandled = await handleMainMenu({
+      phone,
+      textLower,
+      text,
+      session,
+    });
     if (principalHandled) return true;
   }
 
@@ -391,7 +619,11 @@ async function processUserMessage({ phone, textLower, text, session, modoHumano,
     if (handled) return true;
   }
 
-  const knowledgeHandled = await resolveWithKnowledgeOrClaude({ phone, text, session });
+  const knowledgeHandled = await resolveWithKnowledgeOrClaude({
+    phone,
+    text,
+    session,
+  });
   if (knowledgeHandled) return true;
 
   if (frasesFallo.some((f) => textLower.includes(f))) session.attempts++;
@@ -399,14 +631,24 @@ async function processUserMessage({ phone, textLower, text, session, modoHumano,
   if (session.attempts >= 5) {
     await sendWhatsApp(phone, MENSAJE_AGENTE);
     const nombreOrPhone = session.nombre || `+${phone}`;
-    await notificarAgentes(phone, nombreOrPhone, `5 intentos sin resolver. Módulo: ${session.contexto || "general"}. Último mensaje: "${text}"`);
+    await notificarAgentes(
+      phone,
+      nombreOrPhone,
+      `5 intentos sin resolver. Módulo: ${session.contexto || "general"}. Último mensaje: "${text}"`,
+    );
     modoHumano.add(phone);
     session.attempts = 0;
     return true;
   }
 
   const contextoActual = session.contexto ? CONTEXTOS[session.contexto] : null;
-  const reply = await askClaude(text, session.history, session.nombre, contextoActual, session.app);
+  const reply = await askClaude(
+    text,
+    session.history,
+    session.nombre,
+    contextoActual,
+    session.app,
+  );
   session.history.push({ role: "user", content: text });
   session.history.push({ role: "assistant", content: reply });
   if (session.history.length > 12) session.history = session.history.slice(-12);
