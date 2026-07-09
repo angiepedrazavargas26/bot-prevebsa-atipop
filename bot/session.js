@@ -13,7 +13,7 @@ function getSession(phone) {
       menu: null,
       app: null,
       submenu: null,
-      esperandoNombre: false,
+      encuestaPaso: null,
     };
   }
   return sessions[phone];

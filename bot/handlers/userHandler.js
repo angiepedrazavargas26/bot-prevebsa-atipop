@@ -263,6 +263,15 @@ async function handleOpcionesAtipop({ phone, text, session }) {
   return false;
 }
 
+const ENCUESTA_PASOS = [
+  { key: "nombre", pregunta: "¿Cuál es su nombre completo?" },
+  { key: "aplicativo", pregunta: "¿Qué aplicativo le falla?" },
+  { key: "version", pregunta: "¿Qué versión tiene instalada?" },
+  { key: "seccion", pregunta: "¿En qué sección le falla?" },
+  { key: "accion", pregunta: "¿En qué acción le falla?" },
+  { key: "error", pregunta: "Describa el error sucedido" },
+];
+
 async function requestAgentAssistance({ phone, session, text, modoHumano }) {
   if (session.nombre) {
     await sendWhatsApp(phone, MENSAJE_AGENTE);
@@ -270,17 +279,40 @@ async function requestAgentAssistance({ phone, session, text, modoHumano }) {
     modoHumano.add(phone);
     return true;
   }
-  session.esperandoNombre = true;
-  await sendWhatsApp(phone, "✓ Se le conectará con un asesor.\n\n¿Cuál es su nombre completo?");
+  session.encuestaPaso = { paso: 0, respuestas: {} };
+  await sendWhatsApp(phone, "✓ Se le conectará con un asesor.\n\n" + ENCUESTA_PASOS[0].pregunta);
   return true;
 }
 
 async function handleEsperandoNombre({ phone, text, session, modoHumano }) {
   session.nombre = text.charAt(0).toUpperCase() + text.slice(1).toLowerCase();
-  session.esperandoNombre = false;
+  session.encuestaPaso = null;
   await sendWhatsApp(phone, MENSAJE_AGENTE);
   await notificarAgentes(phone, session.nombre, `Solicitud de asesor. Módulo: ${session.contexto || "menú principal"}.`);
   modoHumano.add(phone);
+}
+
+async function handleEncuestaPaso({ phone, text, session, modoHumano }) {
+  const paso = session.encuestaPaso.paso;
+  const pasoInfo = ENCUESTA_PASOS[paso];
+  session.encuestaPaso.respuestas[pasoInfo.key] = text;
+  const siguientePaso = paso + 1;
+  if (siguientePaso < ENCUESTA_PASOS.length) {
+    session.encuestaPaso.paso = siguientePaso;
+    await sendWhatsApp(phone, ENCUESTA_PASOS[siguientePaso].pregunta);
+    return true;
+  }
+  const respuestas = session.encuestaPaso.respuestas;
+  const nombre = respuestas.nombre || `+${phone}`;
+  session.nombre = nombre;
+  session.encuestaPaso = null;
+  const encuestaTexto = Object.entries(respuestas)
+    .map(([key, value]) => `· ${key}: ${value}`)
+    .join("\n");
+  await notificarAgentes(phone, nombre, `Encuesta de soporte:\n${encuestaTexto}`);
+  await sendWhatsApp(phone, MENSAJE_AGENTE);
+  modoHumano.add(phone);
+  return true;
 }
 
 async function resolveWithKnowledgeOrClaude({ phone, text, session }) {
@@ -329,8 +361,8 @@ async function processUserMessage({ phone, textLower, text, session, modoHumano,
     if (handled) return true;
   }
 
-  if (session.esperandoNombre) {
-    await handleEsperandoNombre({ phone, text, session, modoHumano, agenteActivo, AGENTES });
+  if (session.encuestaPaso) {
+    await handleEncuestaPaso({ phone, text, session, modoHumano });
     return true;
   }
 
