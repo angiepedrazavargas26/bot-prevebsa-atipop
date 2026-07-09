@@ -19,11 +19,11 @@ function messagesUrl() {
 }
 
 const LIMITES_MB = {
-  image: 500,
-  audio: 500,
-  video: 500,
-  document: 500,
-  sticker: 500,
+  image: 5,
+  audio: 15,
+  video: 25,
+  document: 100,
+  sticker: 10,
 };
 const LIMITES = Object.fromEntries(
   Object.entries(LIMITES_MB).map(([k, v]) => [k, Math.round(v * 1024 * 1024)]),
@@ -346,7 +346,7 @@ async function subirMediaStream(stream, mime, filename, size) {
 
   const res = await fetchWithTimeout(
     `${WHATSAPP_API}/${process.env.PHONE_NUMBER_ID}/media`,
-    { method: "POST", headers, body },
+    { method: "POST", headers, body, duplex: "half" },
   );
   const data = await res.json();
   if (data.error) {
