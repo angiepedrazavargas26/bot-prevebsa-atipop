@@ -92,7 +92,9 @@ async function descargarDesdeMediaId(mediaId) {
   const info = await infoRes.json();
   if (info.error) throw new Error(info.error.message);
 
-  const dlRes = await fetchWithTimeout(info.url);
+  const dlRes = await fetchWithTimeout(info.url, {
+    headers: { Authorization: `Bearer ${process.env.WHATSAPP_TOKEN}` },
+  });
   if (!dlRes.ok) throw new Error("No se pudo descargar el medio desde WhatsApp");
   const buffer = Buffer.from(await dlRes.arrayBuffer());
   const mime =
