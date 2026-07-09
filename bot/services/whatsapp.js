@@ -21,7 +21,7 @@ function messagesUrl() {
 const LIMITES_MB = {
   image: 5,
   audio: 16,
-  video: 16,
+  video: 25,
   document: 100,
   sticker: 3,
 };
@@ -40,11 +40,13 @@ function formatoTamano(bytes) {
 const EXT_MIME = {
   "application/pdf": "pdf",
   "application/msword": "doc",
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "docx",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+    "docx",
   "application/vnd.ms-excel": "xls",
   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": "xlsx",
   "application/vnd.ms-powerpoint": "ppt",
-  "application/vnd.openxmlformats-officedocument.presentationml.presentation": "pptx",
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation":
+    "pptx",
   "text/plain": "txt",
   "text/csv": "csv",
   "application/zip": "zip",
@@ -57,12 +59,17 @@ const EXT_MIME = {
 };
 
 function nombreArchivoSeguro(filename, mime) {
-  let nombre = String(filename || "archivo").replace(/[\\/:*?"<>|\x00-\x1f]/g, "_").trim();
+  let nombre = String(filename || "archivo")
+    .replace(/[\\/:*?"<>|\x00-\x1f]/g, "_")
+    .trim();
   if (!nombre) nombre = "archivo";
   const extActual = (nombre.split(".").pop() || "").toLowerCase();
   const extEsperada = EXT_MIME[mime] || "";
   const sinExtension = nombre.replace(/\.[^.]+$/, "");
-  if (!extActual || (extEsperada && extActual !== extEsperada && extActual.length > 5)) {
+  if (
+    !extActual ||
+    (extEsperada && extActual !== extEsperada && extActual.length > 5)
+  ) {
     nombre = `${sinExtension}.${extEsperada || "bin"}`;
   }
   if (nombre.length > 240) nombre = nombre.slice(0, 240);
@@ -171,7 +178,10 @@ async function subirMedia(buffer, mime, filename) {
     },
   );
   const data = await res.json();
-  if (data.error) throw new Error(`${data.error.message} ${JSON.stringify(data.error.error_data || data.error)}`);
+  if (data.error)
+    throw new Error(
+      `${data.error.message} ${JSON.stringify(data.error.error_data || data.error)}`,
+    );
   return data.id;
 }
 
@@ -193,7 +203,10 @@ async function enviarMediaPorId(to, tipo, mediaId, caption, filename) {
     body: JSON.stringify(body),
   });
   const data = await res.json();
-  if (data.error) throw new Error(`${data.error.message} ${JSON.stringify(data.error.error_data || data.error)}`);
+  if (data.error)
+    throw new Error(
+      `${data.error.message} ${JSON.stringify(data.error.error_data || data.error)}`,
+    );
   return data;
 }
 
@@ -375,7 +388,10 @@ async function reenviarMediaA(destinoPhone, message, agentePhone) {
     }
 
     const { buffer } = await descargarDesdeMediaId(mediaObj.id);
-    const nombre = nombreArchivoSeguro(mediaObj.filename, mime || "application/octet-stream");
+    const nombre = nombreArchivoSeguro(
+      mediaObj.filename,
+      mime || "application/octet-stream",
+    );
     let mediaId;
     try {
       mediaId = await subirMedia(buffer, mime, nombre);
@@ -454,7 +470,10 @@ async function reenviarMediaAlAsesor(agentePhone, clientePhone, message) {
     }
 
     const { buffer } = await descargarDesdeMediaId(mediaObj.id);
-    const nombre = nombreArchivoSeguro(mediaObj.filename, mime || "application/octet-stream");
+    const nombre = nombreArchivoSeguro(
+      mediaObj.filename,
+      mime || "application/octet-stream",
+    );
     let mediaId;
     try {
       mediaId = await subirMedia(buffer, mime, nombre);
