@@ -361,7 +361,7 @@ async function processUserMessage({ phone, textLower, text, session, modoHumano,
     if (handled) return true;
   }
 
-  if (session.encuestaPaso) {
+  if (session.encuestaPaso !== null) {
     await handleEncuestaPaso({ phone, text, session, modoHumano });
     return true;
   }
