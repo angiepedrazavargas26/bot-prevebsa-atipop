@@ -19,11 +19,6 @@ const {
   OPCIONES_PREVEBSA,
   OPCIONES_ATIPOP,
 } = require("../menus/constants");
-const {
-  sendSurvey,
-  parseSurveyResponse,
-  formatSurveyAnswers,
-} = require("../flows/survey");
 
 const frasesFallo = [
   "no funciono",
@@ -275,8 +270,8 @@ async function requestAgentAssistance({ phone, session, text, modoHumano }) {
     modoHumano.add(phone);
     return true;
   }
-  session.esperandoEncuesta = true;
-  await sendSurvey(phone);
+  session.esperandoNombre = true;
+  await sendWhatsApp(phone, "✓ Se le conectará con un asesor.\n\n¿Cuál es su nombre completo?");
   return true;
 }
 

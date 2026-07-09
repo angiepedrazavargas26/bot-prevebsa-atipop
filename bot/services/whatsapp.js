@@ -387,7 +387,7 @@ async function sendFlowMessage(to, bodyText, flowId, ctaText, flowToken) {
       action: {
         name: "flow",
         parameters: {
-          flow_message_version: "3",
+          flow_message_version: "2.1",
           flow_token: flowToken || "default",
           flow_id: flowId,
           flow_cta: ctaText || "Abrir",

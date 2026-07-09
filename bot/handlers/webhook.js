@@ -10,7 +10,6 @@ const {
 } = require("./agentHandler");
 const { detectarNombre, processUserMessage } = require("./userHandler");
 const { getAgentes, getModoHumano, getAgenteActivo } = require("../services/agent");
-const { parseSurveyResponse, formatSurveyAnswers, sendThankYou } = require("../flows/survey");
 
 const AGENTES = getAgentes();
 const modoHumano = getModoHumano();
@@ -36,38 +35,21 @@ async function processIncomingMessage(body) {
     }
 
     let text = "";
-    let surveyResponse = null;
     if (tipo === "text") {
       text = message.text.body.trim();
     } else if (tipo === "interactive") {
-      if (message.interactive?.type === "flow") {
-        surveyResponse = parseSurveyResponse(message);
-      } else {
-        text =
-          message.interactive?.button_reply?.id ||
-          message.interactive?.button_reply?.title ||
-          message.interactive?.list_reply?.id ||
-          message.interactive?.list_reply?.title ||
-          "";
-      }
+      text =
+        message.interactive?.button_reply?.id ||
+        message.interactive?.button_reply?.title ||
+        message.interactive?.list_reply?.id ||
+        message.interactive?.list_reply?.title ||
+        "";
     } else if (!AGENTES.includes(phone)) {
       return;
     }
+    if (!text && !AGENTES.includes(phone)) return;
 
     const session = getSession(phone);
-
-    if (surveyResponse && session.esperandoEncuesta) {
-      session.esperandoEncuesta = false;
-      const formatted = formatSurveyAnswers(surveyResponse.responses);
-      const nombre = surveyResponse.responses.nombre || `+${phone}`;
-      session.nombre = nombre;
-      await notificarAgentes(phone, nombre, `Encuesta de soporte:\n${formatted}`);
-      await sendThankYou(phone);
-      modoHumano.add(phone);
-      return;
-    }
-
-    if (!text && !AGENTES.includes(phone)) return;
 
     console.log(`📩 De ${phone}: ${text}`);
 
