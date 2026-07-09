@@ -48,6 +48,16 @@ async function sendMenuCerrarCaso(phone, clienteActivo) {
 }
 
 // Acepta un caso para el asesor `phone`. Valida que no haya sido aceptado por otro.
+function obtenerInfoCliente(cliente) {
+  const s = getSession(cliente);
+  const nombre = s.nombre ? s.nombre : `+${cliente}`;
+  const respuestas = s.encuestaRespuestas || {};
+  const lineas = Object.entries(respuestas)
+    .map(([key, value]) => `· ${key}: ${value}`)
+    .join("\n");
+  return { nombre, lineas, contexto: s.contexto, menu: s.menu, app: s.app };
+}
+
 async function aceptarCaso({ phone, cliente, modoHumano, agenteActivo, AGENTES }) {
   if (agenteActivo.has(phone)) {
     await sendMenuCerrarCaso(phone, agenteActivo.get(phone));
@@ -78,7 +88,13 @@ async function aceptarCaso({ phone, cliente, modoHumano, agenteActivo, AGENTES }
 
   modoHumano.add(cliente);
   agenteActivo.set(phone, cliente);
-  await sendWhatsApp(phone, `*Asesor activo* — Atendiendo a +${cliente}\n\nEscriba normalmente y sus mensajes llegarán al usuario.\nPara terminar escriba: *#bot*`);
+  const info = obtenerInfoCliente(cliente);
+  let mensajeAsesor = `*Asesor activo* — Atendiendo a ${info.nombre} (+${cliente})\n\n`;
+  if (info.lineas) {
+    mensajeAsesor += `📋 *Datos del cliente:*\n${info.lineas}\n\n`;
+  }
+  mensajeAsesor += `Escriba normalmente y sus mensajes llegarán al usuario.\nPara terminar escriba: *#bot*`;
+  await sendWhatsApp(phone, mensajeAsesor);
   await sendWhatsApp(cliente, "Un asesor de ATI está disponible. ¿En qué le puedo ayudar?");
   for (const agente of AGENTES) {
     if (agente !== phone) {
@@ -166,6 +182,48 @@ async function handleAgentMessage({ phone, text, tipo, message, modoHumano, agen
       mensaje += "\n· No hay casos disponibles en este momento.";
       await sendWhatsApp(phone, mensaje);
     }
+    return;
+  }
+
+  if (text === "#info") {
+    const clienteActivo = agenteActivo.get(phone);
+    const target = clienteActivo || (modoHumano.has(phone) ? null : null);
+    if (!target && !clienteActivo) {
+      await sendWhatsApp(phone, "⚠️ Debe aceptar un caso primero o escribir *#info <número>* para consultar un cliente específico.");
+      return;
+    }
+    const cli = clienteActivo;
+    if (!cli) {
+      await sendWhatsApp(phone, "⚠️ Debe aceptar un caso primero para ver la información.");
+      return;
+    }
+    const info = obtenerInfoCliente(cli);
+    let infoMsg = `📋 *Información del cliente* (${info.nombre} — +${cli})\n\n`;
+    if (info.lineas) {
+      infoMsg += info.lineas + "\n\n";
+    } else {
+      infoMsg += "· Este cliente no completó la encuesta previa.\n\n";
+    }
+    if (info.contexto) {
+      infoMsg += `· Contexto: ${info.contexto}\n`;
+    }
+    await sendWhatsApp(phone, infoMsg);
+    return;
+  }
+
+  if (text.startsWith("#info ")) {
+    const cliente = text.split("#info ")[1].trim();
+    const info = obtenerInfoCliente(cliente);
+    let infoMsg = `📋 *Información del cliente* (${info.nombre} — +${cliente})\n\n`;
+    if (info.lineas) {
+      infoMsg += info.lineas + "\n\n";
+    } else {
+      infoMsg += "· Este cliente no completó la encuesta previa.\n\n";
+    }
+    if (info.contexto) {
+      infoMsg += `· Contexto: ${info.contexto}\n`;
+    }
+    await sendWhatsApp(phone, infoMsg);
     return;
   }
 

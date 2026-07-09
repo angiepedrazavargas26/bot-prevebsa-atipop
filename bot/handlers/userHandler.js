@@ -279,7 +279,8 @@ async function requestAgentAssistance({ phone, session, text, modoHumano }) {
     modoHumano.add(phone);
     return true;
   }
-  session.encuestaPaso = { paso: 0, respuestas: {} };
+  session.encuestaRespuestas = {};
+  session.encuestaPaso = 0;
   await sendWhatsApp(phone, "✓ Se le conectará con un asesor.\n\n" + ENCUESTA_PASOS[0].pregunta);
   return true;
 }
@@ -293,20 +294,19 @@ async function handleEsperandoNombre({ phone, text, session, modoHumano }) {
 }
 
 async function handleEncuestaPaso({ phone, text, session, modoHumano }) {
-  const paso = session.encuestaPaso.paso;
+  const paso = session.encuestaPaso;
   const pasoInfo = ENCUESTA_PASOS[paso];
-  session.encuestaPaso.respuestas[pasoInfo.key] = text;
+  session.encuestaRespuestas[pasoInfo.key] = text;
   const siguientePaso = paso + 1;
   if (siguientePaso < ENCUESTA_PASOS.length) {
-    session.encuestaPaso.paso = siguientePaso;
+    session.encuestaPaso = siguientePaso;
     await sendWhatsApp(phone, ENCUESTA_PASOS[siguientePaso].pregunta);
     return true;
   }
-  const respuestas = session.encuestaPaso.respuestas;
-  const nombre = respuestas.nombre || `+${phone}`;
+  const nombre = session.encuestaRespuestas.nombre || `+${phone}`;
   session.nombre = nombre;
   session.encuestaPaso = null;
-  const encuestaTexto = Object.entries(respuestas)
+  const encuestaTexto = Object.entries(session.encuestaRespuestas)
     .map(([key, value]) => `· ${key}: ${value}`)
     .join("\n");
   await notificarAgentes(phone, nombre, `Encuesta de soporte:\n${encuestaTexto}`);
