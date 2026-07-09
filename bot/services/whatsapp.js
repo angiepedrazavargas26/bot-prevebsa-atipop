@@ -29,6 +29,8 @@ const LIMITES = Object.fromEntries(
   Object.entries(LIMITES_MB).map(([k, v]) => [k, Math.round(v * 1024 * 1024)]),
 );
 
+const UMBRAL_RESUBIDA = 16 * 1024 * 1024;
+
 function formatoTamano(bytes) {
   if (bytes >= 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(1) + " MB";
   if (bytes >= 1024) return (bytes / 1024).toFixed(0) + " KB";
@@ -131,13 +133,17 @@ async function descargarDesdeDrive(url) {
   return resultado;
 }
 
-async function descargarDesdeMediaId(mediaId) {
+async function infoMedia(mediaId) {
   const infoRes = await fetchWithTimeout(
     `${WHATSAPP_API}/${mediaId}?phone_number_id=${process.env.PHONE_NUMBER_ID}&access_token=${process.env.WHATSAPP_TOKEN}`,
   );
   const info = await infoRes.json();
   if (info.error) throw new Error(info.error.message);
+  return info;
+}
 
+async function descargarDesdeMediaId(mediaId) {
+  const info = await infoMedia(mediaId);
   const dlRes = await fetchWithTimeout(info.url, {
     headers: { Authorization: `Bearer ${process.env.WHATSAPP_TOKEN}` },
   });
@@ -344,18 +350,32 @@ async function reenviarMediaA(destinoPhone, message, agentePhone) {
     }[tipo] || tipo;
 
   try {
-    const { buffer, mime } = await descargarDesdeMediaId(mediaObj.id);
+    const info = await infoMedia(mediaObj.id);
+    const tamano = Number(info.file_size) || 0;
+    const mime = info.mime_type || "";
 
     const limite = LIMITES[tipo];
-    if (limite && buffer.length > limite) {
+    if (limite && tamano > limite) {
       await sendWhatsApp(
         destinoPhone,
-        `⚠️ El ${tipoLabel} recibido (${formatoTamano(buffer.length)}) supera el límite de WhatsApp para este tipo (máx. ${LIMITES_MB[tipo]} MB). Pida al asesor que lo envíe por otro medio.`,
+        `⚠️ El ${tipoLabel} recibido (${formatoTamano(tamano)}) supera el límite de WhatsApp para este tipo (máx. ${LIMITES_MB[tipo]} MB). Pida al asesor que lo envíe por otro medio.`,
       );
       return;
     }
 
-    const nombre = nombreArchivoSeguro(mediaObj.filename, mime);
+    if (tamano > UMBRAL_RESUBIDA || tamano === 0) {
+      await enviarMediaPorId(
+        destinoPhone,
+        tipo,
+        mediaObj.id,
+        mediaObj.caption,
+        mediaObj.filename,
+      );
+      return;
+    }
+
+    const { buffer } = await descargarDesdeMediaId(mediaObj.id);
+    const nombre = nombreArchivoSeguro(mediaObj.filename, mime || "application/octet-stream");
     let mediaId;
     try {
       mediaId = await subirMedia(buffer, mime, nombre);
@@ -409,18 +429,32 @@ async function reenviarMediaAlAsesor(agentePhone, clientePhone, message) {
       `📎 *Usuario +${clientePhone}* envió ${tipoLabel === "imagen" ? "una" : "un"} *${tipoLabel}*:`,
     );
 
-    const { buffer, mime } = await descargarDesdeMediaId(mediaObj.id);
+    const info = await infoMedia(mediaObj.id);
+    const tamano = Number(info.file_size) || 0;
+    const mime = info.mime_type || "";
 
     const limite = LIMITES[tipo];
-    if (limite && buffer.length > limite) {
+    if (limite && tamano > limite) {
       await sendWhatsApp(
         agentePhone,
-        `⚠️ El ${tipoLabel} del usuario +${clientePhone} (${formatoTamano(buffer.length)}) supera el límite de WhatsApp (máx. ${LIMITES_MB[tipo]} MB) y no pudo reenviarse.`,
+        `⚠️ El ${tipoLabel} del usuario +${clientePhone} (${formatoTamano(tamano)}) supera el límite de WhatsApp (máx. ${LIMITES_MB[tipo]} MB) y no pudo reenviarse.`,
       );
       return;
     }
 
-    const nombre = nombreArchivoSeguro(mediaObj.filename, mime);
+    if (tamano > UMBRAL_RESUBIDA || tamano === 0) {
+      await enviarMediaPorId(
+        agentePhone,
+        tipo,
+        mediaObj.id,
+        mediaObj.caption,
+        mediaObj.filename,
+      );
+      return;
+    }
+
+    const { buffer } = await descargarDesdeMediaId(mediaObj.id);
+    const nombre = nombreArchivoSeguro(mediaObj.filename, mime || "application/octet-stream");
     let mediaId;
     try {
       mediaId = await subirMedia(buffer, mime, nombre);
