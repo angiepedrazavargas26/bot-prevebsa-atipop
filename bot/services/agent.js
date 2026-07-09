@@ -1,6 +1,6 @@
 // bot/services/agent.js
 
-const AGENTES = ["3026696723", "573163195872", "573102614279"];
+const AGENTES = ["573026696723", "573163195872", "573102614279"];
 const modoHumano = new Set();
 const agenteActivo = new Map();
 

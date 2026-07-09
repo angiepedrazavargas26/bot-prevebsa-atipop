@@ -104,26 +104,19 @@ async function descargarDesdeMediaId(mediaId) {
   return { buffer, mime };
 }
 
-async function subirMedia(buffer, mime) {
-  const initRes = await fetchWithTimeout(`${WHATSAPP_API}/${process.env.PHONE_NUMBER_ID}/media`, {
+async function subirMedia(buffer, mime, filename) {
+  const form = new FormData();
+  form.append("messaging_product", "whatsapp");
+  form.append("type", mime);
+  form.append("file", new Blob([buffer], { type: mime }), filename || "media");
+  const res = await fetchWithTimeout(`${WHATSAPP_API}/${process.env.PHONE_NUMBER_ID}/media`, {
     method: "POST",
-    headers: authHeaders(),
-    body: JSON.stringify({
-      messaging_product: "whatsapp",
-      type: mime,
-    }),
+    headers: { Authorization: `Bearer ${process.env.WHATSAPP_TOKEN}` },
+    body: form,
   });
-  const initData = await initRes.json();
-  if (initData.error) throw new Error(initData.error.message);
-
-  const uploadRes = await fetchWithTimeout(initData.url, {
-    method: "POST",
-    headers: { "Content-Type": mime },
-    body: buffer,
-  });
-  const uploadData = await uploadRes.json();
-  if (uploadData.error) throw new Error(uploadData.error.message);
-  return uploadData.id;
+  const data = await res.json();
+  if (data.error) throw new Error(data.error.message);
+  return data.id;
 }
 
 async function enviarMediaPorId(to, tipo, mediaId, caption, filename) {
@@ -309,7 +302,7 @@ async function reenviarMediaA(destinoPhone, message) {
       return;
     }
 
-    const mediaId = await subirMedia(buffer, mime);
+    const mediaId = await subirMedia(buffer, mime, mediaObj.filename);
     await enviarMediaPorId(
       destinoPhone,
       tipo,
@@ -359,7 +352,7 @@ async function reenviarMediaAlAsesor(agentePhone, clientePhone, message) {
       return;
     }
 
-    const mediaId = await subirMedia(buffer, mime);
+    const mediaId = await subirMedia(buffer, mime, mediaObj.filename);
     await enviarMediaPorId(
       agentePhone,
       tipo,
