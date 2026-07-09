@@ -356,7 +356,16 @@ async function reenviarMediaA(destinoPhone, message, agentePhone) {
     }
 
     const nombre = nombreArchivoSeguro(mediaObj.filename, mime);
-    const mediaId = await subirMedia(buffer, mime, nombre);
+    let mediaId;
+    try {
+      mediaId = await subirMedia(buffer, mime, nombre);
+    } catch (upErr) {
+      if (/demasiado grande|too large|file_size|131052/i.test(upErr.message)) {
+        mediaId = mediaObj.id;
+      } else {
+        throw upErr;
+      }
+    }
     await enviarMediaPorId(
       destinoPhone,
       tipo,
@@ -412,7 +421,16 @@ async function reenviarMediaAlAsesor(agentePhone, clientePhone, message) {
     }
 
     const nombre = nombreArchivoSeguro(mediaObj.filename, mime);
-    const mediaId = await subirMedia(buffer, mime, nombre);
+    let mediaId;
+    try {
+      mediaId = await subirMedia(buffer, mime, nombre);
+    } catch (upErr) {
+      if (/demasiado grande|too large|file_size|131052/i.test(upErr.message)) {
+        mediaId = mediaObj.id;
+      } else {
+        throw upErr;
+      }
+    }
     await enviarMediaPorId(
       agentePhone,
       tipo,
