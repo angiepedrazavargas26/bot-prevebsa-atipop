@@ -319,8 +319,10 @@ async function processUserMessage({ phone, textLower, text, session, modoHumano,
     return true;
   }
 
-  const handled = await handleTutorialMenu({ phone, text, session });
-  if (handled) return true;
+  if (session.menu === "tutoriales") {
+    const handled = await handleTutorialMenu({ phone, text, session });
+    if (handled) return true;
+  }
 
   if (session.menu === "tutoriales_prevebsa") {
     const handled = await handleTutorialesPrevebsa({ phone, text, session });

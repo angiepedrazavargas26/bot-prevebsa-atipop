@@ -376,9 +376,41 @@ async function reenviarMediaAlAsesor(agentePhone, clientePhone, message) {
   }
 }
 
+async function sendFlowMessage(to, bodyText, flowId, ctaText, flowToken) {
+  const payload = {
+    messaging_product: "whatsapp",
+    to,
+    type: "interactive",
+    interactive: {
+      type: "flow",
+      body: { text: bodyText },
+      action: {
+        name: "flow",
+        parameters: {
+          flow_message_version: "3",
+          flow_token: flowToken || "default",
+          flow_id: flowId,
+          flow_cta: ctaText || "Abrir",
+        },
+      },
+    },
+  };
+  const res = await fetchWithTimeout(messagesUrl(), {
+    method: "POST",
+    headers: authHeaders(),
+    body: JSON.stringify(payload),
+  });
+  const data = await res.json();
+  if (!res.ok || data.error) {
+    throw new Error(data.error?.message || "sendFlowMessage failed");
+  }
+  return data;
+}
+
 module.exports = {
   sendWhatsApp,
   sendInteractiveList,
+  sendFlowMessage,
   sendVideoMessage,
   reenviarMediaAlAsesor,
   reenviarMediaA,
