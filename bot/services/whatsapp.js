@@ -19,11 +19,11 @@ function messagesUrl() {
 }
 
 const LIMITES_MB = {
-  image: 5,
-  audio: 16,
-  video: 25,
-  document: 100,
-  sticker: 3,
+  image: 500,
+  audio: 500,
+  video: 500,
+  document: 500,
+  sticker: 500,
 };
 const LIMITES = Object.fromEntries(
   Object.entries(LIMITES_MB).map(([k, v]) => [k, Math.round(v * 1024 * 1024)]),
@@ -302,41 +302,112 @@ async function sendInteractiveList(to, bodyText, buttonText, rows, footerText) {
   await sendWhatsApp(to, text);
 }
 
+async function subirMediaStream(stream, mime, filename, size) {
+  const boundary = "----BotATI" + Date.now().toString(36);
+  const enc = new TextEncoder();
+  const preamble = enc.encode(
+    `--${boundary}\r\n` +
+      `Content-Disposition: form-data; name="messaging_product"\r\n\r\nwhatsapp\r\n` +
+      `--${boundary}\r\n` +
+      `Content-Disposition: form-data; name="type"\r\n\r\n${mime}\r\n` +
+      `--${boundary}\r\n` +
+      `Content-Disposition: form-data; name="file"; filename="${filename}"\r\n` +
+      `Content-Type: ${mime}\r\n\r\n`,
+  );
+  const closing = enc.encode(`\r\n--${boundary}--\r\n`);
+
+  const body = new ReadableStream({
+    async start(controller) {
+      controller.enqueue(preamble);
+      const reader = stream.getReader();
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          controller.enqueue(value);
+        }
+      } finally {
+        controller.enqueue(closing);
+        controller.close();
+        try {
+          await reader.cancel();
+        } catch (_) {}
+      }
+    },
+  });
+
+  const headers = {
+    Authorization: `Bearer ${process.env.WHATSAPP_TOKEN}`,
+    "Content-Type": `multipart/form-data; boundary=${boundary}`,
+  };
+  if (size > 0) {
+    headers["Content-Length"] = String(size + preamble.length + closing.length);
+  }
+
+  const res = await fetchWithTimeout(
+    `${WHATSAPP_API}/${process.env.PHONE_NUMBER_ID}/media`,
+    { method: "POST", headers, body },
+  );
+  const data = await res.json();
+  if (data.error) {
+    throw new Error(
+      `${data.error.message} ${JSON.stringify(data.error.error_data || data.error)}`,
+    );
+  }
+  return data.id;
+}
+
+async function obtenerStreamDrive(url) {
+  const res = await fetchWithTimeout(url, { redirect: "follow" }, 120_000);
+  const contentType = res.headers.get("content-type") || "";
+  if (res.ok && !contentType.includes("text/html")) {
+    const size = Number(res.headers.get("content-length")) || 0;
+    return {
+      stream: res.body,
+      size,
+      mime: contentType.split(";")[0].trim(),
+    };
+  }
+
+  const html = await res.text();
+  if (html.includes("confirm=")) {
+    const confirm = (html.match(/confirm=([0-9A-Za-z_-]+)/) || [])[1] || "t";
+    const id = url.split("id=")[1];
+    const retryRes = await fetchWithTimeout(
+      `https://drive.google.com/uc?export=download&id=${id}&confirm=${confirm}`,
+      { redirect: "follow" },
+      120_000,
+    );
+    const retryContentType = retryRes.headers.get("content-type") || "";
+    if (!retryRes.ok || retryContentType.includes("text/html")) {
+      throw new Error("Drive bloqueó la descarga del archivo");
+    }
+    const size = Number(retryRes.headers.get("content-length")) || 0;
+    return {
+      stream: retryRes.body,
+      size,
+      mime: retryContentType.split(";")[0].trim(),
+    };
+  }
+
+  throw new Error("Drive bloqueó la descarga del archivo");
+}
+
 async function sendVideoMessage(to, video) {
   if (!video) return;
   try {
-    const { buffer, mime } = await retryFetch(
-      video.url,
-      { redirect: "follow" },
-      120_000,
-    ).then(async (res) => {
-      const contentType = res.headers.get("content-type") || "";
-      if (!res.ok || contentType.includes("text/html")) {
-        const html = contentType.includes("text/html") ? await res.text() : "";
-        if (html.includes("confirm=")) {
-          const confirm =
-            (html.match(/confirm=([0-9A-Za-z_-]+)/) || [])[1] || "t";
-          const id = video.url.split("id=")[1];
-          const retryRes = await fetchWithTimeout(
-            `https://drive.google.com/uc?export=download&id=${id}&confirm=${confirm}`,
-            { redirect: "follow" },
-            120_000,
-          );
-          const retryContentType = retryRes.headers.get("content-type") || "";
-          if (!retryRes.ok || retryContentType.includes("text/html")) {
-            throw new Error("Drive bloqueó la descarga del archivo");
-          }
-          const buf = Buffer.from(await retryRes.arrayBuffer());
-          return { buffer: buf, mime: retryContentType.split(";")[0].trim() };
-        }
-        throw new Error("Drive bloqueó la descarga del archivo");
-      }
-      const buf = Buffer.from(await res.arrayBuffer());
-      return { buffer: buf, mime: contentType.split(";")[0].trim() };
-    });
-
-    const mediaMime = mime && mime.startsWith("video/") ? mime : "video/mp4";
-    const mediaId = await subirMedia(buffer, mediaMime);
+    const preparado = await obtenerStreamDrive(video.url);
+    const mediaMime =
+      preparado.mime && preparado.mime.startsWith("video/")
+        ? preparado.mime
+        : "video/mp4";
+    const nombre = nombreArchivoSeguro(video.titulo || "video", mediaMime);
+    const mediaId = await subirMediaStream(
+      preparado.stream,
+      mediaMime,
+      nombre,
+      preparado.size,
+    );
     await enviarMediaPorId(to, "video", mediaId, video.titulo);
   } catch (e) {
     console.error("sendVideoMessage error:", e.message);
