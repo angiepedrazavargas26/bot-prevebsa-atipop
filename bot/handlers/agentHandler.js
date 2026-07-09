@@ -1,5 +1,5 @@
 // Procesa comandos de agentes/asesores y reenvío de mensajes y media entre agentes y usuarios.
-// Maneja: #agente, #rechazar, #bot, #status y retransmisión de texto/media según estado.
+// Maneja: #agente, #rechazar, #bot, #status #info y retransmisión de texto/media según estado.
 // Aceptación de casos dinámica vía menú interactivo en #status.
 const {
   sendWhatsApp,
@@ -58,7 +58,13 @@ function obtenerInfoCliente(cliente) {
   return { nombre, lineas, contexto: s.contexto, menu: s.menu, app: s.app };
 }
 
-async function aceptarCaso({ phone, cliente, modoHumano, agenteActivo, AGENTES }) {
+async function aceptarCaso({
+  phone,
+  cliente,
+  modoHumano,
+  agenteActivo,
+  AGENTES,
+}) {
   if (agenteActivo.has(phone)) {
     await sendMenuCerrarCaso(phone, agenteActivo.get(phone));
     return true;
@@ -95,10 +101,16 @@ async function aceptarCaso({ phone, cliente, modoHumano, agenteActivo, AGENTES }
   }
   mensajeAsesor += `Escriba normalmente y sus mensajes llegarán al usuario.\nPara terminar escriba: *#bot*`;
   await sendWhatsApp(phone, mensajeAsesor);
-  await sendWhatsApp(cliente, "Un asesor de ATI está disponible. ¿En qué le puedo ayudar?");
+  await sendWhatsApp(
+    cliente,
+    "Un asesor de ATI está disponible. ¿En qué le puedo ayudar?",
+  );
   for (const agente of AGENTES) {
     if (agente !== phone) {
-      await sendWhatsApp(agente, `✅ El caso de +${cliente} ya fue aceptado por otro asesor. No es necesario atenderlo.`);
+      await sendWhatsApp(
+        agente,
+        `✅ El caso de +${cliente} ya fue aceptado por otro asesor. No es necesario atenderlo.`,
+      );
     }
   }
   return true;
@@ -120,7 +132,15 @@ function obtenerCasosDisponibles(modoHumano, agenteActivo) {
   return casos;
 }
 
-async function handleAgentMessage({ phone, text, tipo, message, modoHumano, agenteActivo, AGENTES }) {
+async function handleAgentMessage({
+  phone,
+  text,
+  tipo,
+  message,
+  modoHumano,
+  agenteActivo,
+  AGENTES,
+}) {
   if (text.startsWith("#agente ")) {
     const cliente = text.split("#agente ")[1].trim();
     await aceptarCaso({ phone, cliente, modoHumano, agenteActivo, AGENTES });
@@ -134,7 +154,10 @@ async function handleAgentMessage({ phone, text, tipo, message, modoHumano, agen
   }
 
   if (text === "#rechazar") {
-    await sendWhatsApp(phone, "Caso rechazado. Seguirás disponible para otros casos.");
+    await sendWhatsApp(
+      phone,
+      "Caso rechazado. Seguirás disponible para otros casos.",
+    );
     return;
   }
 
@@ -144,8 +167,14 @@ async function handleAgentMessage({ phone, text, tipo, message, modoHumano, agen
       modoHumano.delete(cliente);
       agenteActivo.delete(phone);
       getSession(cliente).attempts = 0;
-      await sendWhatsApp(phone, `· Caso finalizado. Bot reactivado para +${cliente}`);
-      await sendWhatsApp(cliente, "El asistente virtual está disponible nuevamente. 👇");
+      await sendWhatsApp(
+        phone,
+        `· Caso finalizado. Bot reactivado para +${cliente}`,
+      );
+      await sendWhatsApp(
+        cliente,
+        "El asistente virtual está disponible nuevamente. 👇",
+      );
       await sendMenuPrincipal(cliente);
     } else {
       await sendWhatsApp(phone, "No tiene ningún caso activo en este momento.");
@@ -158,13 +187,18 @@ async function handleAgentMessage({ phone, text, tipo, message, modoHumano, agen
     let mensaje = "📊 *Estado del asesor*\n\n";
     if (clienteActivo) {
       const sActivo = getSession(clienteActivo);
-      const nombreActivo = sActivo.nombre ? sActivo.nombre : `+${clienteActivo}`;
+      const nombreActivo = sActivo.nombre
+        ? sActivo.nombre
+        : `+${clienteActivo}`;
       mensaje += `· En chat con cliente: *SÍ* (${nombreActivo} — +${clienteActivo})\n`;
     } else {
       mensaje += "· En chat con cliente: *NO*\n";
     }
 
-    const casosDisponibles = obtenerCasosDisponibles(modoHumano, agenteActivo).slice(0, 10);
+    const casosDisponibles = obtenerCasosDisponibles(
+      modoHumano,
+      agenteActivo,
+    ).slice(0, 10);
 
     if (casosDisponibles.length > 0) {
       const rows = casosDisponibles.map((cli) => {
@@ -177,7 +211,13 @@ async function handleAgentMessage({ phone, text, tipo, message, modoHumano, agen
         };
       });
       mensaje += `\n· Casos disponibles (${casosDisponibles.length}). Toque un caso para aceptarlo:`;
-      await sendInteractiveList(phone, mensaje, "Aceptar caso", rows, "Toque un caso para atenderlo.");
+      await sendInteractiveList(
+        phone,
+        mensaje,
+        "Aceptar caso",
+        rows,
+        "Toque un caso para atenderlo.",
+      );
     } else {
       mensaje += "\n· No hay casos disponibles en este momento.";
       await sendWhatsApp(phone, mensaje);
@@ -189,12 +229,18 @@ async function handleAgentMessage({ phone, text, tipo, message, modoHumano, agen
     const clienteActivo = agenteActivo.get(phone);
     const target = clienteActivo || (modoHumano.has(phone) ? null : null);
     if (!target && !clienteActivo) {
-      await sendWhatsApp(phone, "⚠️ Debe aceptar un caso primero o escribir *#info <número>* para consultar un cliente específico.");
+      await sendWhatsApp(
+        phone,
+        "⚠️ Debe aceptar un caso primero o escribir *#info <número>* para consultar un cliente específico.",
+      );
       return;
     }
     const cli = clienteActivo;
     if (!cli) {
-      await sendWhatsApp(phone, "⚠️ Debe aceptar un caso primero para ver la información.");
+      await sendWhatsApp(
+        phone,
+        "⚠️ Debe aceptar un caso primero para ver la información.",
+      );
       return;
     }
     const info = obtenerInfoCliente(cli);
@@ -234,7 +280,9 @@ async function handleAgentMessage({ phone, text, tipo, message, modoHumano, agen
       console.log(`Asesor ${phone} → Cliente ${clienteActivo}: ${text}`);
     } else {
       await reenviarMediaA(clienteActivo, message);
-      console.log(`Asesor ${phone} → Cliente ${clienteActivo}: media (${tipo})`);
+      console.log(
+        `Asesor ${phone} → Cliente ${clienteActivo}: media (${tipo})`,
+      );
     }
     return;
   }
@@ -246,7 +294,16 @@ async function handleAgentMessage({ phone, text, tipo, message, modoHumano, agen
   return false;
 }
 
-async function forwardToAgent({ phone, text, message, tipo, modoHumano, agenteActivo, AGENTES, session }) {
+async function forwardToAgent({
+  phone,
+  text,
+  message,
+  tipo,
+  modoHumano,
+  agenteActivo,
+  AGENTES,
+  session,
+}) {
   let agenteAsignado = null;
   for (const [agente, cliente] of agenteActivo.entries()) {
     if (cliente === phone) {
@@ -260,13 +317,23 @@ async function forwardToAgent({ phone, text, message, tipo, modoHumano, agenteAc
   } else {
     for (const agente of AGENTES) {
       try {
-        await sendWhatsApp(agente, `*${nombreOrPhone}:*\n${text}\n\n_Escriba *#agente ${phone}* para atender_`);
+        await sendWhatsApp(
+          agente,
+          `*${nombreOrPhone}:*\n${text}\n\n_Escriba *#agente ${phone}* para atender_`,
+        );
       } catch (e) {}
     }
   }
 }
 
-async function forwardMediaToAgent({ phone, message, tipo, modoHumano, agenteActivo, AGENTES }) {
+async function forwardMediaToAgent({
+  phone,
+  message,
+  tipo,
+  modoHumano,
+  agenteActivo,
+  AGENTES,
+}) {
   let agenteAsignado = null;
   for (const [agente, cliente] of agenteActivo.entries()) {
     if (cliente === phone) {
