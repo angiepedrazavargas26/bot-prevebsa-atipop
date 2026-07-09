@@ -15,7 +15,13 @@ function messagesUrl() {
   return `${WHATSAPP_API}/${process.env.PHONE_NUMBER_ID}/messages`;
 }
 
-const LIMITES_MB = { image: 5, audio: 16, video: 16, document: 100, sticker: 0.1 };
+const LIMITES_MB = {
+  image: 5,
+  audio: 16,
+  video: 16,
+  document: 100,
+  sticker: 3,
+};
 const LIMITES = Object.fromEntries(
   Object.entries(LIMITES_MB).map(([k, v]) => [k, Math.round(v * 1024 * 1024)]),
 );
@@ -36,7 +42,9 @@ async function fetchWithTimeout(url, options = {}, timeout = DEFAULT_TIMEOUT) {
     return res;
   } catch (e) {
     if (e.name === "AbortError") {
-      throw new Error(`La solicitud a ${new URL(url).hostname} excedió el tiempo límite (${timeout / 1000}s)`);
+      throw new Error(
+        `La solicitud a ${new URL(url).hostname} excedió el tiempo límite (${timeout / 1000}s)`,
+      );
     }
     throw e;
   } finally {
@@ -66,20 +74,23 @@ async function descargarDesdeDrive(url) {
   const intentar = async (u) => {
     const res = await fetchWithTimeout(u, { redirect: "follow" });
     const contentType = res.headers.get("content-type") || "";
-    if (!res.ok || contentType.includes("text/html")) return { html: await res.text() };
+    if (!res.ok || contentType.includes("text/html"))
+      return { html: await res.text() };
     const buffer = Buffer.from(await res.arrayBuffer());
     return { buffer, mime: contentType.split(";")[0].trim() };
   };
 
   let resultado = await intentar(url);
   if (resultado.html) {
-    const confirm = (resultado.html.match(/confirm=([0-9A-Za-z_-]+)/) || [])[1] || "t";
+    const confirm =
+      (resultado.html.match(/confirm=([0-9A-Za-z_-]+)/) || [])[1] || "t";
     const id = extraerId(url);
     if (!id) throw new Error("No se pudo identificar el archivo de Drive");
     resultado = await intentar(
       `https://drive.google.com/uc?export=download&id=${id}&confirm=${confirm}`,
     );
-    if (resultado.html) throw new Error("Drive bloqueó la descarga del archivo");
+    if (resultado.html)
+      throw new Error("Drive bloqueó la descarga del archivo");
   }
 
   return resultado;
@@ -95,7 +106,8 @@ async function descargarDesdeMediaId(mediaId) {
   const dlRes = await fetchWithTimeout(info.url, {
     headers: { Authorization: `Bearer ${process.env.WHATSAPP_TOKEN}` },
   });
-  if (!dlRes.ok) throw new Error("No se pudo descargar el medio desde WhatsApp");
+  if (!dlRes.ok)
+    throw new Error("No se pudo descargar el medio desde WhatsApp");
   const buffer = Buffer.from(await dlRes.arrayBuffer());
   const mime =
     info.mime_type ||
@@ -109,11 +121,14 @@ async function subirMedia(buffer, mime, filename) {
   form.append("messaging_product", "whatsapp");
   form.append("type", mime);
   form.append("file", new Blob([buffer], { type: mime }), filename || "media");
-  const res = await fetchWithTimeout(`${WHATSAPP_API}/${process.env.PHONE_NUMBER_ID}/media`, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${process.env.WHATSAPP_TOKEN}` },
-    body: form,
-  });
+  const res = await fetchWithTimeout(
+    `${WHATSAPP_API}/${process.env.PHONE_NUMBER_ID}/media`,
+    {
+      method: "POST",
+      headers: { Authorization: `Bearer ${process.env.WHATSAPP_TOKEN}` },
+      body: form,
+    },
+  );
   const data = await res.json();
   if (data.error) throw new Error(data.error.message);
   return data.id;
@@ -160,13 +175,12 @@ async function sendWhatsApp(to, message) {
     method: "POST",
     headers: authHeaders(),
     body: JSON.stringify({
-        messaging_product: "whatsapp",
-        to,
-        type: "text",
-        text: { body: message },
-      }),
-    },
-  );
+      messaging_product: "whatsapp",
+      to,
+      type: "text",
+      text: { body: message },
+    }),
+  });
   return response.json();
 }
 
@@ -221,7 +235,10 @@ async function sendInteractiveList(to, bodyText, buttonText, rows, footerText) {
     }
   }
 
-  console.error("sendInteractiveList error (fallback a texto):", lastError?.message);
+  console.error(
+    "sendInteractiveList error (fallback a texto):",
+    lastError?.message,
+  );
   const text = `${bodyText}\n\n${sanitizedRows
     .map(
       (row) =>
@@ -243,7 +260,8 @@ async function sendVideoMessage(to, video) {
       if (!res.ok || contentType.includes("text/html")) {
         const html = contentType.includes("text/html") ? await res.text() : "";
         if (html.includes("confirm=")) {
-          const confirm = (html.match(/confirm=([0-9A-Za-z_-]+)/) || [])[1] || "t";
+          const confirm =
+            (html.match(/confirm=([0-9A-Za-z_-]+)/) || [])[1] || "t";
           const id = video.url.split("id=")[1];
           const retryRes = await fetchWithTimeout(
             `https://drive.google.com/uc?export=download&id=${id}&confirm=${confirm}`,
