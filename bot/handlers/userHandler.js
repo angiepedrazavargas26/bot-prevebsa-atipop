@@ -273,15 +273,15 @@ const ENCUESTA_PASOS = [
 ];
 
 async function requestAgentAssistance({ phone, session, text, modoHumano }) {
-  if (session.nombre) {
-    await sendWhatsApp(phone, MENSAJE_AGENTE);
-    await notificarAgentes(phone, session.nombre, `Solicitud de asesor. Módulo: ${session.contexto || "menú principal"}. Mensaje: "${text}"`);
-    modoHumano.add(phone);
-    return true;
-  }
   session.encuestaRespuestas = {};
   session.encuestaPaso = 0;
-  await sendWhatsApp(phone, "✓ Se le conectará con un asesor.\n\n" + ENCUESTA_PASOS[0].pregunta);
+  if (session.nombre) {
+    session.encuestaRespuestas.nombre = session.nombre;
+    session.encuestaPaso = 1;
+  }
+  if (session.encuestaPaso < ENCUESTA_PASOS.length) {
+    await sendWhatsApp(phone, "✓ Se le conectará con un asesor.\n\n" + ENCUESTA_PASOS[session.encuestaPaso].pregunta);
+  }
   return true;
 }
 
