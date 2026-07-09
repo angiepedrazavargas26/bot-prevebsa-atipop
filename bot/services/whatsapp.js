@@ -31,6 +31,8 @@ const LIMITES = Object.fromEntries(
 
 const UMBRAL_RESUBIDA = 16 * 1024 * 1024;
 
+const TIPOS_MEDIA = new Set(["image", "audio", "video", "document", "sticker"]);
+
 function formatoTamano(bytes) {
   if (bytes >= 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(1) + " MB";
   if (bytes >= 1024) return (bytes / 1024).toFixed(0) + " KB";
@@ -419,10 +421,114 @@ async function sendVideoMessage(to, video) {
   }
 }
 
+function normalizarContactos(contacts) {
+  return contacts.map((c) => {
+    const nombre =
+      (c.profile && c.profile.name) ||
+      (c.name && c.name.formatted_name) ||
+      "Sin nombre";
+    const waId =
+      c.wa_id ||
+      (c.phones && c.phones[0] && (c.phones[0].wa_id || c.phones[0].phone)) ||
+      "";
+    return {
+      name: { formatted_name: String(nombre) },
+      phones: [{ phone: `+${waId}`, type: "CELL", wa_id: String(waId) }],
+    };
+  });
+}
+
+async function enviarContactos(to, contacts) {
+  const res = await fetchWithTimeout(messagesUrl(), {
+    method: "POST",
+    headers: authHeaders(),
+    body: JSON.stringify({
+      messaging_product: "whatsapp",
+      to,
+      type: "contacts",
+      contacts,
+    }),
+  });
+  const data = await res.json();
+  if (data.error) {
+    throw new Error(`${data.error.message} ${JSON.stringify(data.error.error_data || data.error)}`);
+  }
+  return data;
+}
+
+async function enviarUbicacion(to, location) {
+  const res = await fetchWithTimeout(messagesUrl(), {
+    method: "POST",
+    headers: authHeaders(),
+    body: JSON.stringify({
+      messaging_product: "whatsapp",
+      to,
+      type: "location",
+      location: {
+        latitude: location.latitude,
+        longitude: location.longitude,
+        name: location.name,
+        address: location.address,
+      },
+    }),
+  });
+  const data = await res.json();
+  if (data.error) {
+    throw new Error(`${data.error.message} ${JSON.stringify(data.error.error_data || data.error)}`);
+  }
+  return data;
+}
+
 async function reenviarMediaA(destinoPhone, message, agentePhone) {
   const tipo = message.type;
+
+  if (tipo === "contacts") {
+    if (!Array.isArray(message.contacts)) return;
+    try {
+      await enviarContactos(destinoPhone, normalizarContactos(message.contacts));
+    } catch (e) {
+      console.error("reenviarMediaA (contacto) error:", e.message);
+      try {
+        await sendWhatsApp(destinoPhone, MENSAJE_ERROR_USUARIO);
+      } catch (_) {}
+      if (agentePhone) {
+        try {
+          await sendWhatsApp(
+            agentePhone,
+            `⚠️ No se pudo reenviar el contacto al cliente +${destinoPhone} (${e.message}).`,
+          );
+        } catch (_) {}
+      }
+    }
+    return;
+  }
+
+  if (tipo === "location") {
+    if (!message.location) return;
+    try {
+      await sendWhatsApp(
+        agentePhone,
+        `📍 *Usuario +${clientePhone}* compartió una *ubicación*:`,
+      );
+      await enviarUbicacion(agentePhone, message.location);
+    } catch (e) {
+      console.error("reenviarMediaAlAsesor (ubicación) error:", e.message);
+      try {
+        await sendWhatsApp(
+          agentePhone,
+          `⚠️ Error al reenviar la ubicación del usuario +${clientePhone} (${e.message}). Revíselo directamente en WhatsApp.`,
+        );
+      } catch (_) {}
+      try {
+        await sendWhatsApp(clientePhone, MENSAJE_ERROR_USUARIO);
+      } catch (_) {}
+    }
+    return;
+  }
+
+  if (!TIPOS_MEDIA.has(tipo)) return;
   const mediaObj = message[tipo];
-  if (!mediaObj) return;
+  if (!mediaObj || !mediaObj.id) return;
 
   const tipoLabel =
     {
@@ -498,8 +604,33 @@ async function reenviarMediaA(destinoPhone, message, agentePhone) {
 
 async function reenviarMediaAlAsesor(agentePhone, clientePhone, message) {
   const tipo = message.type;
+
+  if (tipo === "contacts") {
+    if (!Array.isArray(message.contacts)) return;
+    try {
+      await sendWhatsApp(
+        agentePhone,
+        `📎 *Usuario +${clientePhone}* envió un *contacto*:`,
+      );
+      await enviarContactos(agentePhone, normalizarContactos(message.contacts));
+    } catch (e) {
+      console.error("reenviarMediaAlAsesor (contacto) error:", e.message);
+      try {
+        await sendWhatsApp(
+          agentePhone,
+          `⚠️ Error al reenviar el contacto del usuario +${clientePhone} (${e.message}). Revíselo directamente en WhatsApp.`,
+        );
+      } catch (_) {}
+      try {
+        await sendWhatsApp(clientePhone, MENSAJE_ERROR_USUARIO);
+      } catch (_) {}
+    }
+    return;
+  }
+
+  if (!TIPOS_MEDIA.has(tipo)) return;
   const mediaObj = message[tipo];
-  if (!mediaObj) return;
+  if (!mediaObj || !mediaObj.id) return;
 
   const tipoLabel =
     {
