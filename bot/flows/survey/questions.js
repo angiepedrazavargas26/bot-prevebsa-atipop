@@ -25,55 +25,53 @@
 // ===========================================================================
 
 module.exports = {
-  // Nombre de la encuesta (aparece como título de la pantalla del Flow).
   surveyName: "datos para soporte",
-
-  // Texto que acompaña el botón que abre la encuesta.
-  introText:
-    "antes de contactarte con un asesor nesecitamos que contestes unas cosas antes",
-
-  // Texto del botón que el usuario toca para abrir el formulario.
+  introText: "antes de contactarte con un asesor necesitamos que contestes estas preguntas",
   ctaText: "Responder encuesta",
-
-  // ID del Flow publicado en Meta. Toma prioridad la variable de entorno.
-  flowId: process.env.WHATSAPP_FLOW_ID || "",
-
-  // Token para identificar esta instancia de la encuesta.
+  flowId: process.env.WHATSAPP_FLOW_ID || "1451317930096157",
   flowToken: "survey-ati",
-
-  // Mensaje que se envía al usuario al completar la encuesta.
-  thankYouMessage: "¡Gracias por tu respuesta!",
-
-  // -------------------------------------------------------------------------
-  //  PREGUNTAS — completa / modifica según necesites.
-  // -------------------------------------------------------------------------
+  thankYouMessage: "¡Gracias! Un asesor le contactará en breve.",
   questions: [
     {
-      id: "calificacion",
-      type: "rating",
-      title: "¿Cómo calificarías la atención recibida?",
+      id: "nombre",
+      type: "text",
+      title: "¿Cuál es su nombre completo?",
       required: true,
     },
     {
-      id: "recomienda",
-      type: "radio",
-      title: "¿Recomendarías nuestro soporte técnico?",
-      required: true,
-      options: ["Sí", "No", "Tal vez"],
-    },
-    {
-      id: "canal",
+      id: "aplicativo",
       type: "dropdown",
-      title: "¿Desde qué aplicativo nos contactaste?",
-      required: false,
+      title: "¿Qué aplicativo le falla?",
+      required: true,
       options: ["PREVEBSA", "ATIPOP", "Otro"],
     },
     {
-      id: "comentarios",
+      id: "version",
       type: "text",
-      title: "Comentarios adicionales (opcional)",
-      required: false,
-      placeholder: "Escribe aquí tu comentario",
+      title: "¿Qué versión tiene instalada?",
+      required: true,
+      placeholder: "Ej: 2.1.5",
+    },
+    {
+      id: "seccion",
+      type: "text",
+      title: "¿En qué sección le falla?",
+      required: true,
+      placeholder: "Ej: Plan Diario, Login, Sincronización...",
+    },
+    {
+      id: "accion",
+      type: "text",
+      title: "¿En qué acción le falla?",
+      required: true,
+      placeholder: "Ej: Al enviar, al guardar, al abrir...",
+    },
+    {
+      id: "error",
+      type: "text",
+      title: "Describa el error sucedido",
+      required: true,
+      placeholder: "Cuénteme qué pasó...",
     },
   ],
 };

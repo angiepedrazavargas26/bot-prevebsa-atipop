@@ -7,8 +7,6 @@ const {
   sendMenuTutoriales,
   sendMenuTutorialesPrevebsa,
   sendMenuTutorialesAtipop,
-  sendMenuOpcionesPrevebsa,
-  sendMenuOpcionesAtipop,
 } = require("../menus/interactive");
 const { sendWhatsApp, sendVideoMessage, OPCION_ASESOR } = require("../services/whatsapp");
 const { notificarAgentes } = require("../services/agent");
@@ -21,6 +19,11 @@ const {
   OPCIONES_PREVEBSA,
   OPCIONES_ATIPOP,
 } = require("../menus/constants");
+const {
+  sendSurvey,
+  parseSurveyResponse,
+  formatSurveyAnswers,
+} = require("../flows/survey");
 
 const frasesFallo = [
   "no funciono",
@@ -184,8 +187,7 @@ async function handleOpcionesPrevebsa({ phone, text, session }) {
     /^[1-8]$/.test(text)
   ) {
     session.submenu = "prevebsa_detalle";
-    await sendMenuOpcionesPrevebsa(phone);
-    return true;
+    return handleDetallePrevebsa({ phone, text, session });
   }
   if (session.submenu === "prevebsa_detalle") {
     return handleDetallePrevebsa({ phone, text, session });
@@ -239,8 +241,7 @@ async function handleOpcionesAtipop({ phone, text, session }) {
     /^[1-8]$/.test(text)
   ) {
     session.submenu = "atipop_detalle";
-    await sendMenuOpcionesAtipop(phone);
-    return true;
+    return handleDetalleAtipop({ phone, text, session });
   }
   if (session.submenu === "atipop_detalle") {
     return handleDetalleAtipop({ phone, text, session });
@@ -274,8 +275,8 @@ async function requestAgentAssistance({ phone, session, text, modoHumano }) {
     modoHumano.add(phone);
     return true;
   }
-  session.esperandoNombre = true;
-  await sendWhatsApp(phone, "✓ Se le conectará con un asesor.\n\n¿Cuál es su nombre completo?");
+  session.esperandoEncuesta = true;
+  await sendSurvey(phone);
   return true;
 }
 

@@ -14,6 +14,7 @@ function getSession(phone) {
       app: null,
       submenu: null,
       esperandoNombre: false,
+      esperandoEncuesta: false,
     };
   }
   return sessions[phone];

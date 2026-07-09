@@ -245,56 +245,6 @@ async function sendMenuTutorialesAtipop(to) {
   );
 }
 
-async function sendMenuOpcionesPrevebsa(to) {
-  return sendInteractiveList(
-    to,
-    "Seleccione el detalle del problema en PREVEBSA:",
-    "Seleccionar detalle",
-    [
-      { id: "1", title: "Login / Contraseña" },
-      { id: "2", title: "No guarda datos" },
-      { id: "3", title: "Planificaciones" },
-      { id: "4", title: "Inspección" },
-      { id: "5", title: "Imágenes" },
-      { id: "6", title: "Notificaciones" },
-      { id: "7", title: "Configuración / Offline" },
-      { id: "8", title: "Otro problema" },
-      { id: "0", title: "Volver", description: "Regresar al menú anterior" },
-      {
-        id: "#",
-        title: "Contactar con un asesor",
-        description: "Hablar con un asesor",
-      },
-    ],
-    "Toque una opción o escriba el número.",
-  );
-}
-
-async function sendMenuOpcionesAtipop(to) {
-  return sendInteractiveList(
-    to,
-    "Seleccione el detalle del problema en ATIPOP:",
-    "Seleccionar detalle",
-    [
-      { id: "1", title: "Inicio de sesión" },
-      { id: "2", title: "Mi Cuenta / Documentos" },
-      { id: "3", title: "Reporte en Ruta" },
-      { id: "4", title: "Supervisiones / Inspecciones" },
-      { id: "5", title: "Lecturas / Equipos" },
-      { id: "6", title: "Sincronización" },
-      { id: "7", title: "Configuración / GPS" },
-      { id: "8", title: "Otro problema" },
-      { id: "0", title: "Volver", description: "Regresar al menú anterior" },
-      {
-        id: "#",
-        title: "Contactar con un asesor",
-        description: "Hablar con un asesor",
-      },
-    ],
-    "Toque una opción o escriba el número.",
-  );
-}
-
 module.exports = {
   sendMenuPrincipal,
   sendMenuPrevebsa,
@@ -302,6 +252,4 @@ module.exports = {
   sendMenuTutoriales: sendMenuTutoriales,
   sendMenuTutorialesPrevebsa,
   sendMenuTutorialesAtipop,
-  sendMenuOpcionesPrevebsa,
-  sendMenuOpcionesAtipop,
 };
