@@ -279,7 +279,7 @@ async function handleAgentMessage({
       await sendWhatsApp(clienteActivo, `*Asesor ATI:*\n${text}`);
       console.log(`Asesor ${phone} → Cliente ${clienteActivo}: ${text}`);
     } else {
-      await reenviarMediaA(clienteActivo, message);
+      await reenviarMediaA(clienteActivo, message, phone);
       console.log(
         `Asesor ${phone} → Cliente ${clienteActivo}: media (${tipo})`,
       );

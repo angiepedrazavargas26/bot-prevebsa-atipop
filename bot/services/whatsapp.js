@@ -2,6 +2,9 @@
 
 const OPCION_ASESOR = "\n\n_Escriba *#* para hablar con un asesor_";
 
+const MENSAJE_ERROR_USUARIO =
+  "⚠️ Ocurrió un problema técnico al procesar tu mensaje. Nuestro equipo ya está trabajando para solucionarlo pronto. Por favor, intenta de nuevo en unos minutos.";
+
 const WHATSAPP_API = "https://graph.facebook.com/v19.0";
 
 function authHeaders() {
@@ -30,6 +33,38 @@ function formatoTamano(bytes) {
   if (bytes >= 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(1) + " MB";
   if (bytes >= 1024) return (bytes / 1024).toFixed(0) + " KB";
   return bytes + " B";
+}
+
+const EXT_MIME = {
+  "application/pdf": "pdf",
+  "application/msword": "doc",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "docx",
+  "application/vnd.ms-excel": "xls",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": "xlsx",
+  "application/vnd.ms-powerpoint": "ppt",
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation": "pptx",
+  "text/plain": "txt",
+  "text/csv": "csv",
+  "application/zip": "zip",
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp",
+  "audio/ogg": "ogg",
+  "audio/mpeg": "mp3",
+  "video/mp4": "mp4",
+};
+
+function nombreArchivoSeguro(filename, mime) {
+  let nombre = String(filename || "archivo").replace(/[\\/:*?"<>|\x00-\x1f]/g, "_").trim();
+  if (!nombre) nombre = "archivo";
+  const extActual = (nombre.split(".").pop() || "").toLowerCase();
+  const extEsperada = EXT_MIME[mime] || "";
+  const sinExtension = nombre.replace(/\.[^.]+$/, "");
+  if (!extActual || (extEsperada && extActual !== extEsperada && extActual.length > 5)) {
+    nombre = `${sinExtension}.${extEsperada || "bin"}`;
+  }
+  if (nombre.length > 240) nombre = nombre.slice(0, 240);
+  return nombre;
 }
 
 const DEFAULT_TIMEOUT = 120_000;
@@ -130,7 +165,7 @@ async function subirMedia(buffer, mime, filename) {
     },
   );
   const data = await res.json();
-  if (data.error) throw new Error(data.error.message);
+  if (data.error) throw new Error(`${data.error.message} ${JSON.stringify(data.error.error_data || data.error)}`);
   return data.id;
 }
 
@@ -152,7 +187,7 @@ async function enviarMediaPorId(to, tipo, mediaId, caption, filename) {
     body: JSON.stringify(body),
   });
   const data = await res.json();
-  if (data.error) throw new Error(data.error.message);
+  if (data.error) throw new Error(`${data.error.message} ${JSON.stringify(data.error.error_data || data.error)}`);
   return data;
 }
 
@@ -294,7 +329,7 @@ async function sendVideoMessage(to, video) {
   }
 }
 
-async function reenviarMediaA(destinoPhone, message) {
+async function reenviarMediaA(destinoPhone, message, agentePhone) {
   const tipo = message.type;
   const mediaObj = message[tipo];
   if (!mediaObj) return;
@@ -320,22 +355,28 @@ async function reenviarMediaA(destinoPhone, message) {
       return;
     }
 
-    const mediaId = await subirMedia(buffer, mime, mediaObj.filename);
+    const nombre = nombreArchivoSeguro(mediaObj.filename, mime);
+    const mediaId = await subirMedia(buffer, mime, nombre);
     await enviarMediaPorId(
       destinoPhone,
       tipo,
       mediaId,
       mediaObj.caption,
-      mediaObj.filename,
+      nombre,
     );
   } catch (e) {
     console.error("reenviarMediaA error:", e.message);
     try {
-      await sendWhatsApp(
-        destinoPhone,
-        `⚠️ No se pudo reenviar el ${tipoLabel} del asesor (${e.message}).`,
-      );
+      await sendWhatsApp(destinoPhone, MENSAJE_ERROR_USUARIO);
     } catch (_) {}
+    if (agentePhone) {
+      try {
+        await sendWhatsApp(
+          agentePhone,
+          `⚠️ No se pudo reenviar el ${tipoLabel} al cliente +${destinoPhone} (${e.message}).`,
+        );
+      } catch (_) {}
+    }
   }
 }
 
@@ -370,13 +411,14 @@ async function reenviarMediaAlAsesor(agentePhone, clientePhone, message) {
       return;
     }
 
-    const mediaId = await subirMedia(buffer, mime, mediaObj.filename);
+    const nombre = nombreArchivoSeguro(mediaObj.filename, mime);
+    const mediaId = await subirMedia(buffer, mime, nombre);
     await enviarMediaPorId(
       agentePhone,
       tipo,
       mediaId,
       mediaObj.caption,
-      mediaObj.filename,
+      nombre,
     );
   } catch (e) {
     console.error("reenviarMediaAlAsesor error:", e.message);
@@ -385,6 +427,9 @@ async function reenviarMediaAlAsesor(agentePhone, clientePhone, message) {
         agentePhone,
         `⚠️ Error al reenviar el ${tipoLabel} del usuario +${clientePhone} (${e.message}). Revíselo directamente en WhatsApp.`,
       );
+    } catch (_) {}
+    try {
+      await sendWhatsApp(clientePhone, MENSAJE_ERROR_USUARIO);
     } catch (_) {}
   }
 }
