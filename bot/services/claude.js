@@ -23,6 +23,7 @@ REGLAS — sígalas estrictamente:
 6. Al final de CADA respuesta incluya siempre: "_Escriba *#* para hablar con un asesor_"
 7. Tono formal y cordial — use "usted"
 8. Si no sabe con certeza, dígalo y ofrezca escalar con un asesor
+9. FORMATO: este mensaje se envía por WhatsApp. Para NEGRITA use un solo asterisco: *texto*. NUNCA use doble asterisco (**) ni otro markdown (##, \`, etc.). Respete las líneas en blanco para separar párrafos.
 
 ATIPOP — Módulos: Login (SGA/FaceID), Mi Cuenta (ATIFace, carnet, documentos, vehículo), Sincronizar, Configuración (GPS, vibración), Reporte en Ruta, Supervisiones e Inspecciones, Lecturas (medidores/QR/equipos), Equipos
 PREVEBSA — Módulos: Planificaciones (2 formatos: Con/Sin Energía), Inspecciones (3 formatos: Vehículo/Moto/Equipos Críticos), Observaciones, Planes de Acción, Módulo Proceso, Configuración, Notificaciones`;
@@ -49,7 +50,15 @@ PREVEBSA — Módulos: Planificaciones (2 formatos: Con/Sin Energía), Inspeccio
 
   const data = await response.json();
   if (data.error) throw new Error(JSON.stringify(data.error));
-  return data.content[0].text;
+  let text = data.content[0].text;
+
+  text = text
+    .replace(/\*\*(.+?)\*\*/g, "*$1*")
+    .replace(/__(.+?)__/g, "_$1_")
+    .replace(/^#{1,6}\s+/gm, "")
+    .replace(/`([^`]+)`/g, "$1");
+
+  return text;
 }
 
 module.exports = { askClaude };
