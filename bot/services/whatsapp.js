@@ -7,6 +7,11 @@ const MENSAJE_ERROR_USUARIO =
 
 const WHATSAPP_API = "https://graph.facebook.com/v19.0";
 
+const FFMPEG_PATH =
+  "C:\\Users\\carlos\\AppData\\Local\\Microsoft\\WinGet\\Packages\\Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe\\ffmpeg-8.1.2-full_build\\bin\\ffmpeg.exe";
+
+const ENABLE_VIDEO_COMPRESSION = process.env.ENABLE_VIDEO_COMPRESSION === "true";
+
 function authHeaders() {
   return {
     Authorization: `Bearer ${process.env.WHATSAPP_TOKEN}`,
@@ -384,6 +389,25 @@ async function obtenerStreamDrive(url) {
   throw new Error("Drive bloqueó la descarga del archivo");
 }
 
+async function comprimirVideo(buffer, mime) {
+  const fs = await import("fs");
+  const { execSync } = await import("child_process");
+  const tmpInput = `C:\\Users\\carlos\\AppData\\Local\\Temp\\kilo\\ffmpeg\\input_${Date.now()}.mp4`;
+  const tmpOutput = `C:\\Users\\carlos\\AppData\\Local\\Temp\\kilo\\ffmpeg\\output_${Date.now()}.mp4`;
+  fs.writeFileSync(tmpInput, buffer);
+  try {
+    execSync(
+      `"${FFMPEG_PATH}" -i "${tmpInput}" -vcodec libx264 -crf 28 -preset fast -acodec aac -movflags +faststart "${tmpOutput}"`,
+      { stdio: ["pipe", "pipe", "pipe"] },
+    );
+    const compressed = fs.readFileSync(tmpOutput);
+    return compressed;
+  } finally {
+    try { fs.unlinkSync(tmpInput); } catch (_) {}
+    try { fs.unlinkSync(tmpOutput); } catch (_) {}
+  }
+}
+
 async function sendVideoMessage(to, video) {
   if (!video) return;
   try {
@@ -397,41 +421,22 @@ async function sendVideoMessage(to, video) {
       `[sendVideoMessage] ${video.titulo || nombre} | mime=${mediaMime} | size=${preparado.size} bytes`,
     );
     const buffer = await streamToBuffer(preparado.stream);
-    const mediaId = await subirMedia(buffer, mediaMime, nombre);
+    let mediaBuffer = buffer;
+    if (ENABLE_VIDEO_COMPRESSION && preparado.size > 16 * 1024 * 1024) {
+      console.log("[sendVideoMessage] Comprimiendo video...");
+      mediaBuffer = await comprimirVideo(buffer, mediaMime);
+      console.log(
+        `[sendVideoMessage] Video comprimido: ${buffer.length} -> ${mediaBuffer.length} bytes`,
+      );
+    }
+    const mediaId = await subirMedia(mediaBuffer, mediaMime, nombre);
     await enviarMediaPorId(to, "video", mediaId, video.titulo);
   } catch (e) {
-    console.error("sendVideoMessage error (video):", e.message);
+    console.error("sendVideoMessage error:", e.message);
     const fileId = video.url.split("id=")[1];
-    try {
-      const preparado = await obtenerStreamDrive(video.url);
-      const mediaMime =
-        preparado.mime && preparado.mime.startsWith("video/")
-          ? "video/mp4"
-          : preparado.mime;
-      const nombre = nombreArchivoSeguro(
-        video.titulo || "video",
-        mediaMime.replace("video/", "application/"),
-      );
-      const buffer = await streamToBuffer(preparado.stream);
-      const mediaId = await subirMedia(
-        buffer,
-        mediaMime.replace("video/", "application/"),
-        nombre,
-      );
-      await enviarMediaPorId(
-        to,
-        "document",
-        mediaId,
-        video.titulo,
-        nombre,
-      );
-      return;
-    } catch (docErr) {
-      console.error("sendVideoMessage error (document):", docErr.message);
-    }
     await sendWhatsApp(
       to,
-      `*${video.titulo}*\n\n› Ver tutorial: https://drive.google.com/file/d/${fileId}/view`,
+      `*${video.titulo}*\n\n⚠️ El video supera el límite de subida de WhatsApp.\n\n› Ver tutorial: https://drive.google.com/file/d/${fileId}/view`,
     );
   }
 }
