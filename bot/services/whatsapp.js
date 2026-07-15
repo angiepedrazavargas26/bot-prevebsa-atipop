@@ -427,13 +427,21 @@ function normalizarContactos(contacts) {
       (c.profile && c.profile.name) ||
       (c.name && c.name.formatted_name) ||
       "Sin nombre";
+    const nombreStr = String(nombre).trim();
+    const partes = nombreStr.split(/\s+/);
+    const firstName = partes.shift() || nombreStr;
+    const lastName = partes.join(" ");
     const crudo =
       c.wa_id ||
       (c.phones && c.phones[0] && (c.phones[0].wa_id || c.phones[0].phone)) ||
       "";
     const numero = String(crudo).replace(/\D/g, "");
     return {
-      name: { formatted_name: String(nombre) },
+      name: {
+        formatted_name: nombreStr,
+        first_name: firstName,
+        last_name: lastName || undefined,
+      },
       phones: [{ phone: numero, type: "CELL", wa_id: numero }],
     };
   });
@@ -515,21 +523,23 @@ async function reenviarMediaA(destinoPhone, message, agentePhone) {
     if (!message.location) return;
     try {
       await sendWhatsApp(
-        agentePhone,
-        `📍 *Usuario +${clientePhone}* compartió una *ubicación*:`,
+        destinoPhone,
+        `📍 *Asesor ATI* compartió una *ubicación*:`,
       );
-      await enviarUbicacion(agentePhone, message.location);
+      await enviarUbicacion(destinoPhone, message.location);
     } catch (e) {
-      console.error("reenviarMediaAlAsesor (ubicación) error:", e.message);
+      console.error("reenviarMediaA (ubicación) error:", e.message);
       try {
-        await sendWhatsApp(
-          agentePhone,
-          `⚠️ Error al reenviar la ubicación del usuario +${clientePhone} (${e.message}). Revíselo directamente en WhatsApp.`,
-        );
+        await sendWhatsApp(destinoPhone, MENSAJE_ERROR_USUARIO);
       } catch (_) {}
-      try {
-        await sendWhatsApp(clientePhone, MENSAJE_ERROR_USUARIO);
-      } catch (_) {}
+      if (agentePhone) {
+        try {
+          await sendWhatsApp(
+            agentePhone,
+            `⚠️ No se pudo reenviar la ubicación al cliente +${destinoPhone} (${e.message}).`,
+          );
+        } catch (_) {}
+      }
     }
     return;
   }
@@ -627,6 +637,29 @@ async function reenviarMediaAlAsesor(agentePhone, clientePhone, message) {
         await sendWhatsApp(
           agentePhone,
           `⚠️ Error al reenviar el contacto del usuario +${clientePhone} (${e.message}). Revíselo directamente en WhatsApp.`,
+        );
+      } catch (_) {}
+      try {
+        await sendWhatsApp(clientePhone, MENSAJE_ERROR_USUARIO);
+      } catch (_) {}
+    }
+    return;
+  }
+
+  if (tipo === "location") {
+    if (!message.location) return;
+    try {
+      await sendWhatsApp(
+        agentePhone,
+        `📍 *Usuario +${clientePhone}* compartió una *ubicación*:`,
+      );
+      await enviarUbicacion(agentePhone, message.location);
+    } catch (e) {
+      console.error("reenviarMediaAlAsesor (ubicación) error:", e.message);
+      try {
+        await sendWhatsApp(
+          agentePhone,
+          `⚠️ Error al reenviar la ubicación del usuario +${clientePhone} (${e.message}). Revíselo directamente en WhatsApp.`,
         );
       } catch (_) {}
       try {
