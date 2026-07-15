@@ -427,13 +427,14 @@ function normalizarContactos(contacts) {
       (c.profile && c.profile.name) ||
       (c.name && c.name.formatted_name) ||
       "Sin nombre";
-    const waId =
+    const crudo =
       c.wa_id ||
       (c.phones && c.phones[0] && (c.phones[0].wa_id || c.phones[0].phone)) ||
       "";
+    const numero = String(crudo).replace(/\D/g, "");
     return {
       name: { formatted_name: String(nombre) },
-      phones: [{ phone: `+${waId}`, type: "CELL", wa_id: String(waId) }],
+      phones: [{ phone: numero, type: "CELL", wa_id: numero }],
     };
   });
 }
@@ -451,7 +452,9 @@ async function enviarContactos(to, contacts) {
   });
   const data = await res.json();
   if (data.error) {
-    throw new Error(`${data.error.message} ${JSON.stringify(data.error.error_data || data.error)}`);
+    throw new Error(
+      `${data.error.message} ${JSON.stringify(data.error.error_data || data.error)}`,
+    );
   }
   return data;
 }
@@ -474,7 +477,9 @@ async function enviarUbicacion(to, location) {
   });
   const data = await res.json();
   if (data.error) {
-    throw new Error(`${data.error.message} ${JSON.stringify(data.error.error_data || data.error)}`);
+    throw new Error(
+      `${data.error.message} ${JSON.stringify(data.error.error_data || data.error)}`,
+    );
   }
   return data;
 }
@@ -485,7 +490,10 @@ async function reenviarMediaA(destinoPhone, message, agentePhone) {
   if (tipo === "contacts") {
     if (!Array.isArray(message.contacts)) return;
     try {
-      await enviarContactos(destinoPhone, normalizarContactos(message.contacts));
+      await enviarContactos(
+        destinoPhone,
+        normalizarContactos(message.contacts),
+      );
     } catch (e) {
       console.error("reenviarMediaA (contacto) error:", e.message);
       try {
