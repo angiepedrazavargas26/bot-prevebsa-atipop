@@ -385,12 +385,8 @@ async function sendVideoMessage(to, video) {
         ? preparado.mime
         : "video/mp4";
     const nombre = nombreArchivoSeguro(video.titulo || "video", mediaMime);
-    const mediaId = await subirMediaStream(
-      preparado.stream,
-      mediaMime,
-      nombre,
-      preparado.size,
-    );
+    const buffer = Buffer.from(await preparado.stream.arrayBuffer());
+    const mediaId = await subirMedia(buffer, mediaMime, nombre);
     await enviarMediaPorId(to, "video", mediaId, video.titulo);
   } catch (e) {
     console.error("sendVideoMessage error:", e.message);
