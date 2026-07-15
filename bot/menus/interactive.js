@@ -185,7 +185,7 @@ async function sendMenuTutorialesPrevebsa(to) {
       {
         id: "3",
         title: "Inspecciones en PREVEBSA",
-        description: "Crear inspecciones preoperacionales",
+        description: "Crear inspecciones planeadas",
       },
       {
         id: "4",

@@ -89,7 +89,7 @@ const VIDEOS_PREVEBSA = {
     titulo: "Tutorial: Plan Diario en PREVEBSA",
   },
   3: {
-    url: "https://drive.google.com/uc?export=download&id=15boeO7ukMzmB2D5EOUcLYpWFHr7Xw_gc",
+    url: "https://drive.google.com/uc?export=download&id=18pB2VkBHclcIMpUDGwwUySY2-C45GIAL",
     titulo: "Tutorial: Inspecciones planeadas en PREVEBSA",
   },
   4: {
