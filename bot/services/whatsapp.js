@@ -400,8 +400,35 @@ async function sendVideoMessage(to, video) {
     const mediaId = await subirMedia(buffer, mediaMime, nombre);
     await enviarMediaPorId(to, "video", mediaId, video.titulo);
   } catch (e) {
-    console.error("sendVideoMessage error:", e.message);
+    console.error("sendVideoMessage error (video):", e.message);
     const fileId = video.url.split("id=")[1];
+    try {
+      const preparado = await obtenerStreamDrive(video.url);
+      const mediaMime =
+        preparado.mime && preparado.mime.startsWith("video/")
+          ? "video/mp4"
+          : preparado.mime;
+      const nombre = nombreArchivoSeguro(
+        video.titulo || "video",
+        mediaMime.replace("video/", "application/"),
+      );
+      const buffer = await streamToBuffer(preparado.stream);
+      const mediaId = await subirMedia(
+        buffer,
+        mediaMime.replace("video/", "application/"),
+        nombre,
+      );
+      await enviarMediaPorId(
+        to,
+        "document",
+        mediaId,
+        video.titulo,
+        nombre,
+      );
+      return;
+    } catch (docErr) {
+      console.error("sendVideoMessage error (document):", docErr.message);
+    }
     await sendWhatsApp(
       to,
       `*${video.titulo}*\n\n› Ver tutorial: https://drive.google.com/file/d/${fileId}/view`,
