@@ -393,6 +393,9 @@ async function sendVideoMessage(to, video) {
         ? preparado.mime
         : "video/mp4";
     const nombre = nombreArchivoSeguro(video.titulo || "video", mediaMime);
+    console.log(
+      `[sendVideoMessage] ${video.titulo || nombre} | mime=${mediaMime} | size=${preparado.size} bytes`,
+    );
     const buffer = await streamToBuffer(preparado.stream);
     const mediaId = await subirMedia(buffer, mediaMime, nombre);
     await enviarMediaPorId(to, "video", mediaId, video.titulo);
