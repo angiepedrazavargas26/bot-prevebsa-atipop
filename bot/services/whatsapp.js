@@ -61,6 +61,14 @@ function nombreArchivoSeguro(filename, mime) {
 
 const DEFAULT_TIMEOUT = 120_000;
 
+async function streamToBuffer(stream) {
+  const chunks = [];
+  for await (const chunk of stream) {
+    chunks.push(chunk);
+  }
+  return Buffer.concat(chunks);
+}
+
 async function fetchWithTimeout(url, options = {}, timeout = DEFAULT_TIMEOUT) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeout);
@@ -385,7 +393,7 @@ async function sendVideoMessage(to, video) {
         ? preparado.mime
         : "video/mp4";
     const nombre = nombreArchivoSeguro(video.titulo || "video", mediaMime);
-    const buffer = Buffer.from(await preparado.stream.arrayBuffer());
+    const buffer = await streamToBuffer(preparado.stream);
     const mediaId = await subirMedia(buffer, mediaMime, nombre);
     await enviarMediaPorId(to, "video", mediaId, video.titulo);
   } catch (e) {
