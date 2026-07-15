@@ -18,26 +18,7 @@ function messagesUrl() {
   return `${WHATSAPP_API}/${process.env.PHONE_NUMBER_ID}/messages`;
 }
 
-const LIMITES_MB = {
-  image: 5,
-  audio: 15,
-  video: 25,
-  document: 100,
-  sticker: 10,
-};
-const LIMITES = Object.fromEntries(
-  Object.entries(LIMITES_MB).map(([k, v]) => [k, Math.round(v * 1024 * 1024)]),
-);
-
-const UMBRAL_RESUBIDA = 16 * 1024 * 1024;
-
 const TIPOS_MEDIA = new Set(["image", "audio", "video", "document", "sticker"]);
-
-function formatoTamano(bytes) {
-  if (bytes >= 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(1) + " MB";
-  if (bytes >= 1024) return (bytes / 1024).toFixed(0) + " KB";
-  return bytes + " B";
-}
 
 const EXT_MIME = {
   "application/pdf": "pdf",
@@ -558,64 +539,54 @@ async function reenviarMediaA(destinoPhone, message, agentePhone) {
     }[tipo] || tipo;
 
   try {
-    const info = await infoMedia(mediaObj.id);
-    const tamano = Number(info.file_size) || 0;
-    const mime = info.mime_type || "";
-
-    const limite = LIMITES[tipo];
-    if (limite && tamano > limite) {
-      await sendWhatsApp(
-        destinoPhone,
-        `⚠️ El ${tipoLabel} recibido (${formatoTamano(tamano)}) supera el límite de WhatsApp para este tipo (máx. ${LIMITES_MB[tipo]} MB). Pida al asesor que lo envíe por otro medio.`,
-      );
-      return;
-    }
-
-    if (tamano > UMBRAL_RESUBIDA || tamano === 0) {
-      await enviarMediaPorId(
-        destinoPhone,
-        tipo,
-        mediaObj.id,
-        mediaObj.caption,
-        mediaObj.filename,
-      );
-      return;
-    }
-
-    const { buffer } = await descargarDesdeMediaId(mediaObj.id);
-    const nombre = nombreArchivoSeguro(
-      mediaObj.filename,
-      mime || "application/octet-stream",
-    );
-    let mediaId;
-    try {
-      mediaId = await subirMedia(buffer, mime, nombre);
-    } catch (upErr) {
-      if (/demasiado grande|too large|file_size|131052/i.test(upErr.message)) {
-        mediaId = mediaObj.id;
-      } else {
-        throw upErr;
-      }
-    }
     await enviarMediaPorId(
       destinoPhone,
       tipo,
-      mediaId,
+      mediaObj.id,
       mediaObj.caption,
-      nombre,
+      mediaObj.filename,
     );
   } catch (e) {
-    console.error("reenviarMediaA error:", e.message);
     try {
-      await sendWhatsApp(destinoPhone, MENSAJE_ERROR_USUARIO);
-    } catch (_) {}
-    if (agentePhone) {
+      const info = await infoMedia(mediaObj.id);
+      const tamano = Number(info.file_size) || 0;
+      const mime = info.mime_type || "";
+
+      const { buffer } = await descargarDesdeMediaId(mediaObj.id);
+      const nombre = nombreArchivoSeguro(
+        mediaObj.filename,
+        mime || "application/octet-stream",
+      );
+      let mediaId;
       try {
-        await sendWhatsApp(
-          agentePhone,
-          `⚠️ No se pudo reenviar el ${tipoLabel} al cliente +${destinoPhone} (${e.message}).`,
-        );
+        mediaId = await subirMedia(buffer, mime, nombre);
+      } catch (upErr) {
+        if (/demasiado grande|too large|file_size|131052/i.test(upErr.message)) {
+          mediaId = mediaObj.id;
+        } else {
+          throw upErr;
+        }
+      }
+      await enviarMediaPorId(
+        destinoPhone,
+        tipo,
+        mediaId,
+        mediaObj.caption,
+        nombre,
+      );
+    } catch (fallbackErr) {
+      console.error("reenviarMediaA error:", fallbackErr.message);
+      try {
+        await sendWhatsApp(destinoPhone, MENSAJE_ERROR_USUARIO);
       } catch (_) {}
+      if (agentePhone) {
+        try {
+          await sendWhatsApp(
+            agentePhone,
+            `⚠️ No se pudo reenviar el ${tipoLabel} al cliente +${destinoPhone} (${fallbackErr.message}).`,
+          );
+        } catch (_) {}
+      }
     }
   }
 }
@@ -688,63 +659,53 @@ async function reenviarMediaAlAsesor(agentePhone, clientePhone, message) {
       `📎 *Usuario +${clientePhone}* envió ${tipoLabel === "imagen" ? "una" : "un"} *${tipoLabel}*:`,
     );
 
-    const info = await infoMedia(mediaObj.id);
-    const tamano = Number(info.file_size) || 0;
-    const mime = info.mime_type || "";
-
-    const limite = LIMITES[tipo];
-    if (limite && tamano > limite) {
-      await sendWhatsApp(
-        agentePhone,
-        `⚠️ El ${tipoLabel} del usuario +${clientePhone} (${formatoTamano(tamano)}) supera el límite de WhatsApp (máx. ${LIMITES_MB[tipo]} MB) y no pudo reenviarse.`,
-      );
-      return;
-    }
-
-    if (tamano > UMBRAL_RESUBIDA || tamano === 0) {
-      await enviarMediaPorId(
-        agentePhone,
-        tipo,
-        mediaObj.id,
-        mediaObj.caption,
-        mediaObj.filename,
-      );
-      return;
-    }
-
-    const { buffer } = await descargarDesdeMediaId(mediaObj.id);
-    const nombre = nombreArchivoSeguro(
-      mediaObj.filename,
-      mime || "application/octet-stream",
-    );
-    let mediaId;
-    try {
-      mediaId = await subirMedia(buffer, mime, nombre);
-    } catch (upErr) {
-      if (/demasiado grande|too large|file_size|131052/i.test(upErr.message)) {
-        mediaId = mediaObj.id;
-      } else {
-        throw upErr;
-      }
-    }
     await enviarMediaPorId(
       agentePhone,
       tipo,
-      mediaId,
+      mediaObj.id,
       mediaObj.caption,
-      nombre,
+      mediaObj.filename,
     );
   } catch (e) {
-    console.error("reenviarMediaAlAsesor error:", e.message);
     try {
-      await sendWhatsApp(
-        agentePhone,
-        `⚠️ Error al reenviar el ${tipoLabel} del usuario +${clientePhone} (${e.message}). Revíselo directamente en WhatsApp.`,
+      const info = await infoMedia(mediaObj.id);
+      const tamano = Number(info.file_size) || 0;
+      const mime = info.mime_type || "";
+
+      const { buffer } = await descargarDesdeMediaId(mediaObj.id);
+      const nombre = nombreArchivoSeguro(
+        mediaObj.filename,
+        mime || "application/octet-stream",
       );
-    } catch (_) {}
-    try {
-      await sendWhatsApp(clientePhone, MENSAJE_ERROR_USUARIO);
-    } catch (_) {}
+      let mediaId;
+      try {
+        mediaId = await subirMedia(buffer, mime, nombre);
+      } catch (upErr) {
+        if (/demasiado grande|too large|file_size|131052/i.test(upErr.message)) {
+          mediaId = mediaObj.id;
+        } else {
+          throw upErr;
+        }
+      }
+      await enviarMediaPorId(
+        agentePhone,
+        tipo,
+        mediaId,
+        mediaObj.caption,
+        nombre,
+      );
+    } catch (fallbackErr) {
+      console.error("reenviarMediaAlAsesor error:", fallbackErr.message);
+      try {
+        await sendWhatsApp(
+          agentePhone,
+          `⚠️ Error al reenviar el ${tipoLabel} del usuario +${clientePhone} (${fallbackErr.message}). Revíselo directamente en WhatsApp.`,
+        );
+      } catch (_) {}
+      try {
+        await sendWhatsApp(clientePhone, MENSAJE_ERROR_USUARIO);
+      } catch (_) {}
+    }
   }
 }
 
