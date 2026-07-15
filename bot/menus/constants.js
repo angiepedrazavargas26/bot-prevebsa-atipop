@@ -25,92 +25,11 @@ const CONTEXTOS = {
     "Problema general en ATIPOP. NO mencione PREVEBSA. NO mencione FaceID a menos que el usuario lo indique",
 };
 
-const MENU_PRINCIPAL = `✦ Bienvenido al soporte técnico de *ATI*
-
-¿Con cuál aplicativo necesita ayuda?
-
-1️⃣ *PREVEBSA*
-   Seguridad y salud en el trabajo (HSE)
-2️⃣ *ATIPOP*
-   Operación, montaje y mantenimiento eléctrico
-3️⃣ *TUTORIALES*
-   Videos de uso paso a paso
-*#️⃣ ASESOR*
-   Escriba *asesor* para hablar con una persona
-
-_Responda con el número_ · Escriba *#* para hablar con un asesor 👇`;
-
-const MENU_PREVEBSA = `📱 *PREVEBSA* — ¿En qué le ayudo?
-
-1️⃣ *Login / Contraseña*
-   Problemas para ingresar o recuperar clave
-2️⃣ *Planificaciones*
-   Crear o gestionar el plan diario
-3️⃣ *Inspecciones preoperacionales*
-   Vehículo, moto o equipos críticos
-4️⃣ *Observaciones*
-   Registrar hallazgos en campo
-5️⃣ *Planes de Acción*
-   Seguimiento a hallazgos y correctivos
-6️⃣ *Módulo Proceso*
-   Seguimiento de envíos e imágenes
-7️⃣ *Configuración / Notificaciones*
-   Modo offline, segundo plano, alertas
-8️⃣ *Otro problema*
-   Inconveniente no listado
-
-_Indique el número_ · Escriba *#* para hablar con un asesor 👇`;
-
-const MENU_ATIPOP = `📱 *ATIPOP* — ¿En qué le ayudo?
-
-1️⃣ *Inicio de sesión*
-   Problemas con correo, contraseña o FaceID
-2️⃣ *Mi Cuenta / Documentos*
-   Perfil, carnet, nómina, vehículo
-3️⃣ *Reporte en Ruta*
-   Crear o gestionar reportes diarios
-4️⃣ *Supervisiones e Inspecciones*
-   Registrar supervisiones o inspecciones
-5️⃣ *Lecturas / Equipos*
-   Medidores, valores, equipos asignados
-6️⃣ *Sincronización*
-   Datos desactualizados o sin cargar
-7️⃣ *Configuración / GPS / Alertas*
-   Distancia GPS, vibración, segundo plano
-8️⃣ *Otro problema*
-   Inconveniente no listado
-
-_Indique el número_ · Escriba *#* para hablar con un asesor 👇`;
-
 const MENSAJE_AGENTE = `Disculpe los inconvenientes.
 
 Un asesor de ATI le responderá en breve desde este número. 
 
 Si desea, comparta más detalles o una captura de pantalla para agilizar la atención.`;
-
-const MENU_TUTORIALES = `*Tutoriales* — ¿De cuál aplicativo?
-
-1️⃣ PREVEBSA
-2️⃣ ATIPOP
-0️⃣ Volver al menú principal`;
-
-const MENU_TUTORIALES_PREVEBSA = `*Tutoriales PREVEBSA:*
-
-1️⃣ Login en PREVEBSA
-2️⃣ Plan Diario en PREVEBSA
-3️⃣ Inspecciones en PREVEBSA
-4️⃣ borrar cache
-5️⃣ cambiar contraseña 
-0️⃣ Volver`;
-
-const MENU_TUTORIALES_ATIPOP = `*Tutoriales ATIPOP:*
-
-1️⃣ Inicio de sesión con FaceID
-2️⃣ Registro de asistencia
-3️⃣ Cómo registrar FaceID
-4️⃣ Login con correo y contraseña
-5️⃣ Recuperar contraseña
-0️⃣ Volver`;
 
 const MENU_OPCIONES_PREVEBSA = `Seleccione el detalle del problema en PREVEBSA:
 
@@ -205,13 +124,7 @@ const VIDEOS_ATIPOP = {
 module.exports = {
   OPCION_ASESOR,
   CONTEXTOS,
-  MENU_PRINCIPAL,
-  MENU_PREVEBSA,
-  MENU_ATIPOP,
   MENSAJE_AGENTE,
-  MENU_TUTORIALES,
-  MENU_TUTORIALES_PREVEBSA,
-  MENU_TUTORIALES_ATIPOP,
   MENU_OPCIONES_PREVEBSA,
   MENU_OPCIONES_ATIPOP,
   OPCIONES_PREVEBSA,
