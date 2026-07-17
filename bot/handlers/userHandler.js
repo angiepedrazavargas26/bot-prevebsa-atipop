@@ -577,7 +577,7 @@ async function handleEncuestaPaso({ phone, text, session, modoHumano }) {
       const ejemplo = listaEjemplos.find((e) => e.question === rama[0].key);
       let mensaje = rama[0].pregunta;
       if (ejemplo && ejemplo.text) {
-        mensaje += `\n\n> ${ejemplo.text}_`;
+        mensaje += `\n\n> ${ejemplo.text}`;
       }
       await sendWhatsApp(phone, mensaje);
       return true;

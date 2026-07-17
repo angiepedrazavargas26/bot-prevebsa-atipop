@@ -1,5 +1,5 @@
 // Procesa comandos de agentes/asesores y reenvío de mensajes y media entre agentes y usuarios.
-// Maneja: #agente, #rechazar, #bot, #status #info y retransmisión de texto/media según estado.
+// Maneje: #agente, #rechazar, #bot, #status #info y retransmisión de texto/media según estado.
 // Aceptación de casos dinámica vía menú interactivo en #status.
 const {
   sendWhatsApp,
@@ -103,7 +103,7 @@ async function aceptarCaso({
   await sendWhatsApp(phone, mensajeAsesor);
   await sendWhatsApp(
     cliente,
-    "Un asesor de ATI está disponible. ¿En qué le puedo ayudar?",
+    "Un asesor de ATI está disponible en breve revisaremos su caso y le daremos pronta solucion.",
   );
   for (const agente of AGENTES) {
     if (agente !== phone) {

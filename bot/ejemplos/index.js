@@ -14,7 +14,7 @@ const ejemplos = {
       question: "accion",
       text: "Ejem: 'estaba subiendo el unifilar', 'solicitando autorizacion'",
     },
-    { question: "error", text: "'escriba detalladamente el error sucedido'" },
+    { question: "error", text: "escriba detalladamente el error sucedido" },
   ],
   peticion: [
     {
