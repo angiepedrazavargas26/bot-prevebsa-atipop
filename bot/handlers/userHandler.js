@@ -462,6 +462,32 @@ const ENCUESTA_PASOS = [
   { key: "error", pregunta: "Describa el error sucedido" },
 ];
 
+const PRUEBA_DE_BOT_RESPUESTAS = {
+  nombre: "Usuario Prueba",
+  correo: "prueba@test.com",
+  aplicativo: "PREVEBSA",
+  version: "1.0",
+  seccion: "Login",
+  accion: "Ingreso",
+  error: "Prueba de bot - sin error real",
+};
+
+async function handlePruebaDeBot({ phone, session, modoHumano }) {
+  session.encuestaRespuestas = { ...PRUEBA_DE_BOT_RESPUESTAS };
+  session.encuestaPaso = null;
+  session.nombre = PRUEBA_DE_BOT_RESPUESTAS.nombre;
+  const encuestaTexto = Object.entries(session.encuestaRespuestas)
+    .map(([key, value]) => `· ${key}: ${value}`)
+    .join("\n");
+  await notificarAgentes(
+    phone,
+    session.nombre,
+    `Encuesta de soporte (prueba de bot):\n${encuestaTexto}`,
+  );
+  await sendWhatsApp(phone, MENSAJE_AGENTE);
+  modoHumano.add(phone);
+}
+
 async function requestAgentAssistance({ phone, session, text, modoHumano }) {
   session.encuestaRespuestas = {};
   session.encuestaPaso = 0;
@@ -582,6 +608,10 @@ async function processUserMessage({
   if (session.menu === "tutoriales_atipop") {
     const handled = await handleTutorialesAtipop({ phone, text, session });
     if (handled) return true;
+  }
+
+  if (text === "#pruebadebot") {
+    return handlePruebaDeBot({ phone, session, modoHumano });
   }
 
   if (session.encuestaPaso !== null) {
