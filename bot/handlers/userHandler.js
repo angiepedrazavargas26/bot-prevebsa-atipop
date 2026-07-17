@@ -7,6 +7,7 @@ const {
   sendMenuTutoriales,
   sendMenuTutorialesPrevebsa,
   sendMenuTutorialesAtipop,
+  sendMenuTipoProblema,
 } = require("../menus/interactive");
 const {
   sendWhatsApp,
@@ -457,32 +458,53 @@ const ENCUESTA_PASOS = [
   { key: "correo", pregunta: "¿Cual es su correo vinculado a la aplicacion?" },
   { key: "aplicativo", pregunta: "¿Qué aplicativo le falla?" },
   { key: "version", pregunta: "¿Qué versión tiene instalada?" },
-  { key: "seccion", pregunta: "¿En qué sección le falla?" },
-  { key: "accion", pregunta: "¿En qué acción le falla?" },
-  { key: "error", pregunta: "Describa el error sucedido" },
 ];
 
-const PRUEBA_DE_BOT_RESPUESTAS = {
-  nombre: "Usuario Prueba",
-  correo: "prueba@test.com",
-  aplicativo: "PREVEBSA",
-  version: "1.0",
-  seccion: "Login",
-  accion: "Ingreso",
-  error: "Prueba de bot - sin error real",
+const ENCUESTA_RAMAS = {
+  error: [
+    { key: "seccion", pregunta: "¿En qué sección le falla?" },
+    { key: "accion", pregunta: "¿En qué acción le falla?" },
+    { key: "error", pregunta: "Describa el error sucedido" },
+  ],
+  peticion: [
+    { key: "ayuda", pregunta: "¿En qué desea que le ayudemos?" },
+    { key: "razon", pregunta: "Por favor describa una razón para esto" },
+  ],
 };
 
-async function handlePruebaDeBot({ phone, session, modoHumano }) {
-  session.encuestaRespuestas = { ...PRUEBA_DE_BOT_RESPUESTAS };
+const PRUEBA_DE_BOT_RESPUESTAS = {
+  error: {
+    nombre: "Usuario Prueba",
+    correo: "prueba@test.com",
+    aplicativo: "PREVEBSA",
+    version: "1.0",
+    seccion: "Login",
+    accion: "Ingreso",
+    error: "Prueba de bot - error de prueba",
+  },
+  peticion: {
+    nombre: "Usuario Prueba",
+    correo: "prueba@test.com",
+    aplicativo: "PREVEBSA",
+    version: "1.0",
+    ayuda: "Reabrir plan diario",
+    razon: "Prueba de bot - petición de prueba",
+  },
+};
+
+async function handlePruebaDeBot({ phone, session, modoHumano, rama = "error" }) {
+  const respuestas = { ...PRUEBA_DE_BOT_RESPUESTAS[rama] };
+  session.encuestaRespuestas = respuestas;
   session.encuestaPaso = null;
-  session.nombre = PRUEBA_DE_BOT_RESPUESTAS.nombre;
-  const encuestaTexto = Object.entries(session.encuestaRespuestas)
+  session.encuestaRama = null;
+  session.nombre = respuestas.nombre;
+  const encuestaTexto = Object.entries(respuestas)
     .map(([key, value]) => `· ${key}: ${value}`)
     .join("\n");
   await notificarAgentes(
     phone,
     session.nombre,
-    `Encuesta de soporte (prueba de bot):\n${encuestaTexto}`,
+    `Encuesta de soporte (prueba de bot - ${rama}):\n${encuestaTexto}`,
   );
   await sendWhatsApp(phone, MENSAJE_AGENTE);
   modoHumano.add(phone);
@@ -518,18 +540,46 @@ async function handleEsperandoNombre({ phone, text, session, modoHumano }) {
 }
 
 async function handleEncuestaPaso({ phone, text, session, modoHumano }) {
-  const paso = session.encuestaPaso;
-  const pasoInfo = ENCUESTA_PASOS[paso];
-  session.encuestaRespuestas[pasoInfo.key] = text;
-  const siguientePaso = paso + 1;
-  if (siguientePaso < ENCUESTA_PASOS.length) {
-    session.encuestaPaso = siguientePaso;
-    await sendWhatsApp(phone, ENCUESTA_PASOS[siguientePaso].pregunta);
+  if (session.encuestaRama === "esperando_tipo") {
+    if (text === "error" || text === "peticion") {
+      session.encuestaRama = text;
+      const rama = ENCUESTA_RAMAS[text];
+      session.encuestaPaso = 0;
+      await sendWhatsApp(phone, rama[0].pregunta);
+      return true;
+    }
+    await sendWhatsApp(phone, "Por favor seleccione una opción del menú.");
     return true;
   }
+
+  const paso = session.encuestaPaso;
+  const rama =
+    session.encuestaRama === "error"
+      ? ENCUESTA_RAMAS.error
+      : session.encuestaRama === "peticion"
+        ? ENCUESTA_RAMAS.peticion
+        : ENCUESTA_PASOS;
+
+  const pasoInfo = rama[paso];
+  session.encuestaRespuestas[pasoInfo.key] = text;
+  const siguientePaso = paso + 1;
+
+  if (!session.encuestaRama && paso === 3) {
+    session.encuestaRama = "esperando_tipo";
+    await sendMenuTipoProblema(phone);
+    return true;
+  }
+
+  if (siguientePaso < rama.length) {
+    session.encuestaPaso = siguientePaso;
+    await sendWhatsApp(phone, rama[siguientePaso].pregunta);
+    return true;
+  }
+
   const nombre = session.encuestaRespuestas.nombre || `+${phone}`;
   session.nombre = nombre;
   session.encuestaPaso = null;
+  session.encuestaRama = null;
   const encuestaTexto = Object.entries(session.encuestaRespuestas)
     .map(([key, value]) => `· ${key}: ${value}`)
     .join("\n");
@@ -611,7 +661,13 @@ async function processUserMessage({
   }
 
   if (text === "#pruebadebot") {
-    return handlePruebaDeBot({ phone, session, modoHumano });
+    return handlePruebaDeBot({ phone, session, modoHumano, rama: "error" });
+  }
+  if (text === "#pruebaboterror") {
+    return handlePruebaDeBot({ phone, session, modoHumano, rama: "error" });
+  }
+  if (text === "#pruebabotpeticion") {
+    return handlePruebaDeBot({ phone, session, modoHumano, rama: "peticion" });
   }
 
   if (session.encuestaPaso !== null) {

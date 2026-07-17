@@ -255,6 +255,27 @@ async function sendMenuTutorialesAtipop(to) {
   );
 }
 
+async function sendMenuTipoProblema(to) {
+  return sendInteractiveList(
+    to,
+    "¿Qué tipo de problema desea solucionar?\n\nPor favor seleccione una respuesta",
+    "Tipo de problema",
+    [
+      {
+        id: "error",
+        title: "Un error",
+        description: "Un problema con el aplicativo por un error del mismo",
+      },
+      {
+        id: "peticion",
+        title: "Una petición",
+        description: "Necesito cambiar el municipio o reabrir el plan diario",
+      },
+    ],
+    "Toque una opción o escriba el número.",
+  );
+}
+
 module.exports = {
   sendMenuPrincipal,
   sendMenuPrevebsa,
@@ -262,4 +283,5 @@ module.exports = {
   sendMenuTutoriales: sendMenuTutoriales,
   sendMenuTutorialesPrevebsa,
   sendMenuTutorialesAtipop,
+  sendMenuTipoProblema,
 };
