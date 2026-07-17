@@ -609,14 +609,17 @@ async function handleEncuestaPaso({ phone, text, session, modoHumano }) {
     const ejemplo = listaEjemplos.find(
       (e) => e.question === siguientePasoInfo.key,
     );
+
+    let mensaje = siguientePasoInfo.pregunta;
     if (ejemplo && ejemplo.text) {
-      await sendWhatsApp(phone, ejemplo.text);
+      mensaje += `\n\n_${ejemplo.text}_`;
     }
 
     if (siguientePasoInfo.key === "version") {
       const app = (session.encuestaRespuestas.aplicativo || "").toLowerCase();
       const prefijo = app.includes("atipop") ? "atipop" : "prevebsa";
       const basePath = path.join(__dirname, "..", "ejemplos");
+      await sendWhatsApp(phone, mensaje);
       for (let i = 1; i <= 2; i++) {
         const searchBase = path.join(basePath, `${prefijo} ${i}`);
         const found = fs.readdirSync(basePath).find((f) =>
@@ -626,9 +629,10 @@ async function handleEncuestaPaso({ phone, text, session, modoHumano }) {
           await sendImageMessage(phone, path.join(basePath, found));
         }
       }
+      return true;
     }
 
-    await sendWhatsApp(phone, siguientePasoInfo.pregunta);
+    await sendWhatsApp(phone, mensaje);
     return true;
   }
 
