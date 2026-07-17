@@ -1,5 +1,8 @@
 // bot/services/whatsapp.js
 
+const fs = require("fs");
+const path = require("path");
+
 const OPCION_ASESOR = "\n\n_Escriba *#* para hablar con un asesor_";
 
 const MENSAJE_ERROR_USUARIO =
@@ -409,6 +412,25 @@ async function sendVideoMessage(to, video) {
   }
 }
 
+async function sendImageMessage(to, imagePath, caption) {
+  if (!imagePath) return;
+  try {
+    const absolutePath = path.resolve(imagePath);
+    if (!fs.existsSync(absolutePath)) {
+      console.warn(`[sendImageMessage] Archivo no encontrado: ${absolutePath}`);
+      return;
+    }
+    const buffer = fs.readFileSync(absolutePath);
+    const mime =
+      "image/jpeg";
+    const nombre = path.basename(absolutePath);
+    const mediaId = await subirMedia(buffer, mime, nombre);
+    await enviarMediaPorId(to, "image", mediaId, caption);
+  } catch (e) {
+    console.error("sendImageMessage error:", e.message);
+  }
+}
+
 function normalizarContactos(contacts) {
   return contacts.map((c) => {
     const nombre =
@@ -756,6 +778,7 @@ module.exports = {
   sendInteractiveList,
   sendFlowMessage,
   sendVideoMessage,
+  sendImageMessage,
   reenviarMediaAlAsesor,
   reenviarMediaA,
   OPCION_ASESOR,

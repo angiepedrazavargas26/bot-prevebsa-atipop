@@ -1,4 +1,6 @@
 // Procesa la lógica del usuario final: detección de nombre, menús, tutoriales, búsqueda en knowledge, fallback a Claude, contador de intentos y solicitud de asesor.
+const path = require("path");
+const fs = require("fs");
 const { searchKnowledge } = require("../knowledge/base");
 const {
   sendMenuPrincipal,
@@ -12,7 +14,7 @@ const {
 const {
   sendWhatsApp,
   sendVideoMessage,
-  OPCION_ASESOR,
+  sendImageMessage,
 } = require("../services/whatsapp");
 const { notificarAgentes } = require("../services/agent");
 const { askClaude } = require("../services/claude");
@@ -24,6 +26,7 @@ const {
   OPCIONES_PREVEBSA,
   OPCIONES_ATIPOP,
 } = require("../menus/constants");
+const { ejemplos } = require("../ejemplos");
 
 const frasesFallo = [
   "no funciono",
@@ -455,22 +458,40 @@ async function handleOpcionesAtipop({ phone, text, session }) {
 
 const ENCUESTA_PASOS = [
   { key: "nombre", pregunta: "¿Cuál es su nombre completo?" },
-  { key: "correo", pregunta: "¿Cual es su correo vinculado a la aplicacion?" },
   { key: "aplicativo", pregunta: "¿Qué aplicativo le falla?" },
   { key: "version", pregunta: "¿Qué versión tiene instalada?" },
+  { key: "correo", pregunta: "¿Cual es su correo vinculado a la aplicacion?" },
 ];
 
 const ENCUESTA_RAMAS = {
   error: [
-    { key: "seccion", pregunta: "¿En qué sección le falla?" },
-    { key: "accion", pregunta: "¿En qué acción le falla?" },
+    { key: "modulo", pregunta: "¿En qué modulo presenta el fallo?" },
+    { key: "accion", pregunta: "¿Qué acción estaba realizando?" },
     { key: "error", pregunta: "Describa el error sucedido" },
   ],
   peticion: [
     { key: "ayuda", pregunta: "¿En qué desea que le ayudemos?" },
-    { key: "razon", pregunta: "Por favor describa una razón para esto" },
+    { key: "razon", pregunta: "Describa la razon de su solicitud" },
   ],
 };
+
+// const ejemplos = {
+//   pasos: [
+//     {
+//       question: "version",
+//       text: "si no sabe cual es la version del aplicativo por favor revise las siguientes imagenes",
+//     },
+//   ],
+//   error: [
+//     { question: "modulo", text: "" },
+//     { question: "accion", text: "" },
+//     { question: "error", text: "" },
+//   ],
+//   peticion: [
+//     { question: "ayuda", text: "" },
+//     { question: "razon", text: "" },
+//   ],
+// };
 
 const PRUEBA_DE_BOT_RESPUESTAS = {
   error: {
@@ -492,7 +513,12 @@ const PRUEBA_DE_BOT_RESPUESTAS = {
   },
 };
 
-async function handlePruebaDeBot({ phone, session, modoHumano, rama = "error" }) {
+async function handlePruebaDeBot({
+  phone,
+  session,
+  modoHumano,
+  rama = "error",
+}) {
   const respuestas = { ...PRUEBA_DE_BOT_RESPUESTAS[rama] };
   session.encuestaRespuestas = respuestas;
   session.encuestaPaso = null;
@@ -572,7 +598,37 @@ async function handleEncuestaPaso({ phone, text, session, modoHumano }) {
 
   if (siguientePaso < rama.length) {
     session.encuestaPaso = siguientePaso;
-    await sendWhatsApp(phone, rama[siguientePaso].pregunta);
+    const siguientePasoInfo = rama[siguientePaso];
+
+    const listaEjemplos = !session.encuestaRama
+      ? ejemplos.pasos
+      : session.encuestaRama === "error"
+        ? ejemplos.error
+        : ejemplos.peticion;
+
+    const ejemplo = listaEjemplos.find(
+      (e) => e.question === siguientePasoInfo.key,
+    );
+    if (ejemplo && ejemplo.text) {
+      await sendWhatsApp(phone, ejemplo.text);
+    }
+
+    if (siguientePasoInfo.key === "version") {
+      const app = (session.encuestaRespuestas.aplicativo || "").toLowerCase();
+      const prefijo = app.includes("atipop") ? "atipop" : "prevebsa";
+      const basePath = path.join(__dirname, "..", "ejemplos");
+      for (let i = 1; i <= 2; i++) {
+        const searchBase = path.join(basePath, `${prefijo} ${i}`);
+        const found = fs.readdirSync(basePath).find((f) =>
+          path.basename(f, path.extname(f)) === path.basename(searchBase),
+        );
+        if (found) {
+          await sendImageMessage(phone, path.join(basePath, found));
+        }
+      }
+    }
+
+    await sendWhatsApp(phone, siguientePasoInfo.pregunta);
     return true;
   }
 
