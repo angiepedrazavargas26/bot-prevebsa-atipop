@@ -572,11 +572,12 @@ async function handleEncuestaPaso({ phone, text, session, modoHumano }) {
       const rama = ENCUESTA_RAMAS[text];
       session.encuestaPaso = 0;
 
-      const listaEjemplos = text === "error" ? ejemplos.error : ejemplos.peticion;
+      const listaEjemplos =
+        text === "error" ? ejemplos.error : ejemplos.peticion;
       const ejemplo = listaEjemplos.find((e) => e.question === rama[0].key);
       let mensaje = rama[0].pregunta;
       if (ejemplo && ejemplo.text) {
-        mensaje += `\n\n_${ejemplo.text}_`;
+        mensaje += `\n\n> ${ejemplo.text}_`;
       }
       await sendWhatsApp(phone, mensaje);
       return true;
@@ -619,7 +620,7 @@ async function handleEncuestaPaso({ phone, text, session, modoHumano }) {
 
     let mensaje = siguientePasoInfo.pregunta;
     if (ejemplo && ejemplo.text) {
-      mensaje += `\n\n${ejemplo.text}`;
+      mensaje += `\n\n> ${ejemplo.text}`;
     }
 
     if (siguientePasoInfo.key === "version") {
@@ -629,9 +630,12 @@ async function handleEncuestaPaso({ phone, text, session, modoHumano }) {
       await sendWhatsApp(phone, mensaje);
       for (let i = 1; i <= 2; i++) {
         const searchBase = path.join(basePath, `${prefijo} ${i}`);
-        const found = fs.readdirSync(basePath).find((f) =>
-          path.basename(f, path.extname(f)) === path.basename(searchBase),
-        );
+        const found = fs
+          .readdirSync(basePath)
+          .find(
+            (f) =>
+              path.basename(f, path.extname(f)) === path.basename(searchBase),
+          );
         if (found) {
           await sendImageMessage(phone, path.join(basePath, found));
         }
