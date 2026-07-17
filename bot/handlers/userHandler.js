@@ -619,7 +619,7 @@ async function handleEncuestaPaso({ phone, text, session, modoHumano }) {
 
     let mensaje = siguientePasoInfo.pregunta;
     if (ejemplo && ejemplo.text) {
-      mensaje += `\n\n_${ejemplo.text}_`;
+      mensaje += `\n\n${ejemplo.text}`;
     }
 
     if (siguientePasoInfo.key === "version") {
