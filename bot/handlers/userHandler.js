@@ -571,7 +571,14 @@ async function handleEncuestaPaso({ phone, text, session, modoHumano }) {
       session.encuestaRama = text;
       const rama = ENCUESTA_RAMAS[text];
       session.encuestaPaso = 0;
-      await sendWhatsApp(phone, rama[0].pregunta);
+
+      const listaEjemplos = text === "error" ? ejemplos.error : ejemplos.peticion;
+      const ejemplo = listaEjemplos.find((e) => e.question === rama[0].key);
+      let mensaje = rama[0].pregunta;
+      if (ejemplo && ejemplo.text) {
+        mensaje += `\n\n_${ejemplo.text}_`;
+      }
+      await sendWhatsApp(phone, mensaje);
       return true;
     }
     await sendWhatsApp(phone, "Por favor seleccione una opción del menú.");
