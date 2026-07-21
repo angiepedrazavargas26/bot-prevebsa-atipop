@@ -1,5 +1,56 @@
 // bot/services/claude.js
 
+const HERRAMIENTA_REPORTAR_ERROR = {
+  name: "reportar_error_nuevo",
+  description:
+    "Reporta un error nuevo o problema NO cubierto por el contexto actual del módulo. Usa esta herramienta SOLO cuando el usuario mencione un inconveniente que claramente no está descrito en el contexto proporcionado.",
+  input_schema: {
+    type: "object",
+    properties: {
+      descripcion: {
+        type: "string",
+        description:
+          "Descripción breve y específica del error o problema nuevo detectado",
+      },
+    },
+    required: ["descripcion"],
+  },
+};
+
+function construirSystemPrompt(appNombre, contexto, nombre) {
+  return `Usted es el asistente de soporte técnico de ATI para el aplicativo ${appNombre}.
+
+═══════════════════════════════════════════════════════════════
+CONTEXTO COMPLETO DEL MÓDULO ACTUAL (SOLO PUEDE USAR ESTA INFORMACIÓN):
+═══════════════════════════════════════════════════════════════
+${contexto || "No hay contexto específico."}
+
+═══════════════════════════════════════════════════════════════
+REGLAS ESTRICTAS — DEBE CUMPLIRLAS TODAS SIN EXCEPCIÓN:
+═══════════════════════════════════════════════════════════════
+
+1. **SOLO puede responder sobre el módulo actual indicado arriba**.
+   - Si el usuario pregunta sobre OTRO módulo, otro aplicativo (PREVEBSA vs ATIPOP), o funcionalidades que NO estén en el contexto, use la herramienta 'reportar_error_nuevo' con una descripción breve del problema.
+   - Después de usar la herramienta, responda al usuario: "Este tipo de inconveniente requiere verificación especializada. Un asesor le contactará pronto. Si necesita ayuda ahora, escriba *#* para hablar con un asesor."
+
+2. **NUNCA invente información** que no esté explícitamente en el contexto.
+   - Si el contexto no menciona una funcionalidad o solución, no la mencione.
+   - Si no sabe la respuesta con certeza, dígalo claramente y ofrezca escalar con un asesor.
+
+3. Sea directo y conciso — use pasos numerados cuando explique procedimientos.
+
+4. Use "usted" en todo momento. Tono formal y cordial.
+
+5. FORMATO WHATSAPP:
+   - Para NEGRITA use un solo asterisco: *texto*
+   - NUNCA use doble asterisco (**), ni markdown avanzado (##, \`, etc.)
+   - Separe párrafos con líneas en blanco
+
+6. Al final de CADA respuesta incluya siempre: "_Escriba *#* para hablar con un asesor_"
+
+7. ${nombre ? `Nombre del usuario: ${nombre}` : ""}`;
+}
+
 async function askClaude(userMessage, history, nombre, contexto, appActual) {
   const appNombre =
     appActual === "PREVEBSA"
@@ -8,25 +59,7 @@ async function askClaude(userMessage, history, nombre, contexto, appActual) {
         ? "ATIPOP (gestión de subestaciones eléctricas)"
         : "ATIPOP o PREVEBSA";
 
-  const systemPrompt = `Usted es el asistente de soporte técnico de ATI para los aplicativos ATIPOP y PREVEBSA.
-
-CONTEXTO ACTUAL: El usuario está consultando sobre *${appNombre}*.
-${contexto ? `MÓDULO ACTUAL: ${contexto}` : ""}
-${nombre ? `Nombre del usuario: ${nombre}` : ""}
-
-REGLAS — sígalas estrictamente:
-1. Responda SIEMPRE sobre ${appActual || "el aplicativo indicado"} — NUNCA cambie de aplicativo
-2. NUNCA mencione FaceID si el módulo actual es Lecturas, Inspecciones, Supervisiones, Reporte en Ruta u Otro
-3. FaceID SOLO aplica al módulo de Login/Mi Cuenta de ATIPOP
-4. Sea directo y conciso — respuestas cortas con pasos claros
-5. Si describe un problema, primero pregunte el error exacto antes de asumir
-6. Al final de CADA respuesta incluya siempre: "_Escriba *#* para hablar con un asesor_"
-7. Tono formal y cordial — use "usted"
-8. Si no sabe con certeza, dígalo y ofrezca escalar con un asesor
-9. FORMATO: este mensaje se envía por WhatsApp. Para NEGRITA use un solo asterisco: *texto*. NUNCA use doble asterisco (**) ni otro markdown (##, \`, etc.). Respete las líneas en blanco para separar párrafos.
-
-ATIPOP — Módulos: Login (SGA/FaceID), Mi Cuenta (ATIFace, carnet, documentos, vehículo), Sincronizar, Configuración (GPS, vibración), Reporte en Ruta, Supervisiones e Inspecciones, Lecturas (medidores/QR/equipos), Equipos
-PREVEBSA — Módulos: Planificaciones (2 formatos: Con/Sin Energía), Inspecciones (3 formatos: Vehículo/Moto/Equipos Críticos), Observaciones, Planes de Acción, Módulo Proceso, Configuración, Notificaciones`;
+  const systemPrompt = construirSystemPrompt(appNombre, contexto, nombre);
 
   const messages = [
     ...history.map((h) => ({ role: h.role, content: h.content })),
@@ -45,20 +78,41 @@ PREVEBSA — Módulos: Planificaciones (2 formatos: Con/Sin Energía), Inspeccio
       max_tokens: 600,
       system: systemPrompt,
       messages,
+      tools: [HERRAMIENTA_REPORTAR_ERROR],
     }),
   });
 
   const data = await response.json();
   if (data.error) throw new Error(JSON.stringify(data.error));
-  let text = data.content[0].text;
+
+  let text = "";
+  const toolCalls = [];
+
+  if (data.stop_reason === "tool_use" && data.content) {
+    for (const block of data.content) {
+      if (block.type === "tool_use") {
+        toolCalls.push({
+          id: block.id,
+          name: block.name,
+          input: block.input,
+        });
+      } else if (block.type === "text") {
+        text += block.text;
+      }
+    }
+  } else if (data.content && data.content[0] && data.content[0].type === "text") {
+    text = data.content[0].text;
+  }
 
   text = text
     .replace(/\*\*(.+?)\*\*/g, "*$1*")
     .replace(/__(.+?)__/g, "_$1_")
     .replace(/^#{1,6}\s+/gm, "")
-    .replace(/`([^`]+)`/g, "$1");
+    .replace(/`([^`]+)`/g, "$1")
+    .trim();
 
-  return text;
+  return { text, toolCalls };
 }
 
-module.exports = { askClaude };
+module.exports = { askClaude, HERRAMIENTA_REPORTAR_ERROR };
+

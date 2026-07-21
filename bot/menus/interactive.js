@@ -184,18 +184,13 @@ async function sendMenuTutorialesPrevebsa(to) {
       },
       {
         id: "3",
-        title: "Inspecciones en PREVEBSA",
+        title: "Inspecciones planeadas en PREVEBSA",
         description: "Crear inspecciones planeadas",
       },
       {
         id: "4",
         title: "Cómo borrar caché",
         description: "Eliminar datos y caché",
-      },
-      {
-        id: "5",
-        title: "Cambiar contraseña",
-        description: "Recuperar o cambiar acceso",
       },
       { id: "0", title: "Volver", description: "Regresar al menú anterior" },
       {

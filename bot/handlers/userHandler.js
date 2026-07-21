@@ -25,6 +25,7 @@ const {
   VIDEOS_ATIPOP,
   OPCIONES_PREVEBSA,
   OPCIONES_ATIPOP,
+  NUMERO_ERRORES,
 } = require("../menus/constants");
 const { ejemplos } = require("../ejemplos");
 
@@ -40,6 +41,15 @@ const frasesFallo = [
   "no resulto",
   "tampoco funciono",
 ];
+
+async function reportarErrorNuevo(phone, descripcion, session) {
+  if (!NUMERO_ERRORES) return;
+  const nombre = session.nombre || `+${phone}`;
+  const app = session.app || "desconocido";
+  const contexto = session.contexto || "general";
+  const mensaje = `⚠️ *NUEVO TIPO DE ERROR DETECTADO*\n\n· Usuario: *${nombre}* (+${phone})\n· Aplicativo: ${app}\n· Módulo: ${contexto}\n· Descripción: ${descripcion}`;
+  await sendWhatsApp(NUMERO_ERRORES, mensaje);
+}
 
 function detectarNombre(text, session) {
   const matchNombre = text.match(
@@ -309,16 +319,24 @@ async function handleDetallePrevebsa({ phone, text, session }) {
     await sendWhatsApp(phone, match.respuesta);
     return true;
   }
-  const reply = await askClaude(
+  const { text: reply, toolCalls } = await askClaude(
     detalle,
     session.history,
     session.nombre,
     CONTEXTOS[session.contexto],
     session.app,
   );
-  session.history.push({ role: "assistant", content: reply });
+  if (toolCalls && toolCalls.length > 0) {
+    for (const call of toolCalls) {
+      if (call.name === "reportar_error_nuevo" && call.input?.descripcion) {
+        await reportarErrorNuevo(phone, call.input.descripcion, session);
+      }
+    }
+  }
+  const respuestaFinal = reply || "Este tipo de inconveniente requiere verificación especializada. Un asesor le contactará pronto. Si necesita ayuda ahora, escriba *#* para hablar con un asesor.";
+  session.history.push({ role: "assistant", content: respuestaFinal });
   if (session.history.length > 12) session.history = session.history.slice(-12);
-  await sendWhatsApp(phone, reply);
+  await sendWhatsApp(phone, respuestaFinal);
   return true;
 }
 
@@ -347,31 +365,9 @@ async function handleOpcionesPrevebsa({ phone, text, session }) {
   };
   if (ops[text]) {
     session.contexto = ops[text];
-    const preguntas = {
-      prevebsa_1:
-        "¿Olvidó la contraseña, su usuario aparece inactivo, o no puede ingresar con sus credenciales?" +
-        OPCION_ASESOR,
-      prevebsa_2:
-        "¿No puede crear la planificación, se perdieron los datos, necesita reabrirla, o tiene otro inconveniente?" +
-        OPCION_ASESOR,
-      prevebsa_3:
-        "¿No puede crear la inspección, necesita reabrirla, o no aparece para asignarla al plan diario?" +
-        OPCION_ASESOR,
-      prevebsa_4:
-        "¿Cuál es el inconveniente con las observaciones?" + OPCION_ASESOR,
-      prevebsa_5:
-        "¿Cuál es el inconveniente con los planes de acción?" + OPCION_ASESOR,
-      prevebsa_6:
-        "¿Cuál es el inconveniente con el Módulo Proceso?" + OPCION_ASESOR,
-      prevebsa_7:
-        "¿El inconveniente es con la configuración, las notificaciones, o el modo offline?" +
-        OPCION_ASESOR,
-      prevebsa_8:
-        "¿Cuál es el inconveniente con PREVEBSA? Cuénteme con detalle." +
-        OPCION_ASESOR,
-    };
-    await sendWhatsApp(phone, preguntas[session.contexto]);
-    return true;
+    session.submenu = null;
+    session.attempts = 0;
+    return handleDetallePrevebsa({ phone, text, session });
   }
   return false;
 }
@@ -388,16 +384,24 @@ async function handleDetalleAtipop({ phone, text, session }) {
     await sendWhatsApp(phone, match.respuesta);
     return true;
   }
-  const reply = await askClaude(
+  const { text: reply, toolCalls } = await askClaude(
     detalle,
     session.history,
     session.nombre,
     CONTEXTOS[session.contexto],
     session.app,
   );
-  session.history.push({ role: "assistant", content: reply });
+  if (toolCalls && toolCalls.length > 0) {
+    for (const call of toolCalls) {
+      if (call.name === "reportar_error_nuevo" && call.input?.descripcion) {
+        await reportarErrorNuevo(phone, call.input.descripcion, session);
+      }
+    }
+  }
+  const respuestaFinal = reply || "Este tipo de inconveniente requiere verificación especializada. Un asesor le contactará pronto. Si necesita ayuda ahora, escriba *#* para hablar con un asesor.";
+  session.history.push({ role: "assistant", content: respuestaFinal });
   if (session.history.length > 12) session.history = session.history.slice(-12);
-  await sendWhatsApp(phone, reply);
+  await sendWhatsApp(phone, respuestaFinal);
   return true;
 }
 
@@ -426,32 +430,9 @@ async function handleOpcionesAtipop({ phone, text, session }) {
   };
   if (ops[text]) {
     session.contexto = ops[text];
-    const preguntas = {
-      atipop_1:
-        "¿El inconveniente es con el inicio de sesión con *correo y contraseña*, o con *FaceID*?" +
-        OPCION_ASESOR,
-      atipop_2:
-        "¿Cuál es el inconveniente con Mi Cuenta o Documentos?" + OPCION_ASESOR,
-      atipop_3:
-        "¿Cuál es el inconveniente con el Reporte en Ruta?" + OPCION_ASESOR,
-      atipop_4:
-        "¿Cuál es el inconveniente con Supervisiones e Inspecciones?" +
-        OPCION_ASESOR,
-      atipop_5:
-        "¿El inconveniente es con *Lecturas* (medidores, valores) o con *Equipos* (historial, devolutivos)?" +
-        OPCION_ASESOR,
-      atipop_6:
-        "¿La app no sincroniza, se queda pegada, o muestra información desactualizada?" +
-        OPCION_ASESOR,
-      atipop_7:
-        "¿El inconveniente es con la configuración, las alertas GPS, o algo más?" +
-        OPCION_ASESOR,
-      atipop_8:
-        "¿Cuál es el inconveniente con ATIPOP? Cuénteme con detalle." +
-        OPCION_ASESOR,
-    };
-    await sendWhatsApp(phone, preguntas[session.contexto]);
-    return true;
+    session.submenu = null;
+    session.attempts = 0;
+    return handleDetalleAtipop({ phone, text, session });
   }
   return false;
 }
@@ -799,17 +780,25 @@ async function processUserMessage({
   }
 
   const contextoActual = session.contexto ? CONTEXTOS[session.contexto] : null;
-  const reply = await askClaude(
+  const { text: reply, toolCalls } = await askClaude(
     text,
     session.history,
     session.nombre,
     contextoActual,
     session.app,
   );
+  if (toolCalls && toolCalls.length > 0) {
+    for (const call of toolCalls) {
+      if (call.name === "reportar_error_nuevo" && call.input?.descripcion) {
+        await reportarErrorNuevo(phone, call.input.descripcion, session);
+      }
+    }
+  }
+  const respuestaFinal = reply || "Este tipo de inconveniente requiere verificación especializada. Un asesor le contactará pronto. Si necesita ayuda ahora, escriba *#* para hablar con un asesor.";
   session.history.push({ role: "user", content: text });
-  session.history.push({ role: "assistant", content: reply });
+  session.history.push({ role: "assistant", content: respuestaFinal });
   if (session.history.length > 12) session.history = session.history.slice(-12);
-  await sendWhatsApp(phone, reply);
+  await sendWhatsApp(phone, respuestaFinal);
   return true;
 }
 
