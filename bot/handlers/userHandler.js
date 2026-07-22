@@ -26,6 +26,7 @@ const {
   OPCIONES_PREVEBSA,
   OPCIONES_ATIPOP,
   NUMERO_ERRORES,
+  OPCION_ASESOR,
 } = require("../menus/constants");
 const { ejemplos } = require("../ejemplos");
 
