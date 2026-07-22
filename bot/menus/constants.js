@@ -4,7 +4,7 @@ const { CONTEXTOS } = require("../contextos");
 
 const OPCION_ASESOR = "\n\n_Escriba *#* para hablar con un asesor_";
 
-const NUMERO_ERRORES = process.env.NUMERO_ERRORES || "";
+const NUMERO_ERRORES = process.env.NUMERO_ERRORES || "573026676723";
 
 const MENSAJE_AGENTE = `Disculpe los inconvenientes.
 
@@ -82,12 +82,16 @@ const VIDEOS_ATIPOP = {
 
 const NUMERO_NUEVOS_ERRORES = "573026696723";
 
+const MENSAJE_ERROR_NUEVO =
+  "el error mencionado no esta cubierto, use # para poder contactar con un asesor, se haran unas preguntas para poder ayudarle de mejor forma";
+
 module.exports = {
   OPCION_ASESOR,
   CONTEXTOS,
   NUMERO_ERRORES,
   NUMERO_NUEVOS_ERRORES,
   MENSAJE_AGENTE,
+  MENSAJE_ERROR_NUEVO,
   // MENU_OPCIONES_PREVEBSA,
   // MENU_OPCIONES_ATIPOP,
   OPCIONES_PREVEBSA,

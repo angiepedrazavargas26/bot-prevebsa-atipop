@@ -21,6 +21,7 @@ const { askClaude } = require("../services/claude");
 const {
   NUMERO_NUEVOS_ERRORES,
   MENSAJE_AGENTE,
+  MENSAJE_ERROR_NUEVO,
   CONTEXTOS,
   VIDEOS_PREVEBSA,
   VIDEOS_ATIPOP,
@@ -329,14 +330,18 @@ async function handleDetallePrevebsa({ phone, text, session }) {
     CONTEXTOS[session.contexto],
     session.app,
   );
+  let esErrorNuevo = false;
   if (toolCalls && toolCalls.length > 0) {
     for (const call of toolCalls) {
       if (call.name === "reportar_error_nuevo" && call.input?.descripcion) {
         await reportarErrorNuevo(phone, call.input.descripcion, session);
+        esErrorNuevo = true;
       }
     }
   }
-  const respuestaFinal = reply || "Este tipo de inconveniente requiere verificación especializada. Un asesor le contactará pronto. Si necesita ayuda ahora, escriba *#* para hablar con un asesor.";
+  const respuestaFinal = esErrorNuevo
+    ? MENSAJE_ERROR_NUEVO
+    : reply || "Este tipo de inconveniente requiere verificación especializada. Un asesor le contactará pronto. Si necesita ayuda ahora, escriba *#* para hablar con un asesor.";
   session.history.push({ role: "assistant", content: respuestaFinal });
   if (session.history.length > 12) session.history = session.history.slice(-12);
   await sendWhatsApp(phone, respuestaFinal);
@@ -394,14 +399,18 @@ async function handleDetalleAtipop({ phone, text, session }) {
     CONTEXTOS[session.contexto],
     session.app,
   );
+  let esErrorNuevo = false;
   if (toolCalls && toolCalls.length > 0) {
     for (const call of toolCalls) {
       if (call.name === "reportar_error_nuevo" && call.input?.descripcion) {
         await reportarErrorNuevo(phone, call.input.descripcion, session);
+        esErrorNuevo = true;
       }
     }
   }
-  const respuestaFinal = reply || "Este tipo de inconveniente requiere verificación especializada. Un asesor le contactará pronto. Si necesita ayuda ahora, escriba *#* para hablar con un asesor.";
+  const respuestaFinal = esErrorNuevo
+    ? MENSAJE_ERROR_NUEVO
+    : reply || "Este tipo de inconveniente requiere verificación especializada. Un asesor le contactará pronto. Si necesita ayuda ahora, escriba *#* para hablar con un asesor.";
   session.history.push({ role: "assistant", content: respuestaFinal });
   if (session.history.length > 12) session.history = session.history.slice(-12);
   await sendWhatsApp(phone, respuestaFinal);
@@ -790,14 +799,18 @@ async function processUserMessage({
     contextoActual,
     session.app,
   );
+  let esErrorNuevo = false;
   if (toolCalls && toolCalls.length > 0) {
     for (const call of toolCalls) {
       if (call.name === "reportar_error_nuevo" && call.input?.descripcion) {
         await reportarErrorNuevo(phone, call.input.descripcion, session);
+        esErrorNuevo = true;
       }
     }
   }
-  const respuestaFinal = reply || "Este tipo de inconveniente requiere verificación especializada. Un asesor le contactará pronto. Si necesita ayuda ahora, escriba *#* para hablar con un asesor.";
+  const respuestaFinal = esErrorNuevo
+    ? MENSAJE_ERROR_NUEVO
+    : reply || "Este tipo de inconveniente requiere verificación especializada. Un asesor le contactará pronto. Si necesita ayuda ahora, escriba *#* para hablar con un asesor.";
   session.history.push({ role: "user", content: text });
   session.history.push({ role: "assistant", content: respuestaFinal });
   if (session.history.length > 12) session.history = session.history.slice(-12);
