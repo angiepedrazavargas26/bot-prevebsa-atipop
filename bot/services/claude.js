@@ -37,18 +37,20 @@ REGLAS ESTRICTAS — DEBE CUMPLIRLAS TODAS SIN EXCEPCIÓN:
    - Si el contexto no menciona una funcionalidad o solución, no la mencione.
    - Si no sabe la respuesta con certeza, dígalo claramente y ofrezca escalar con un asesor.
 
-3. Sea directo y conciso — use pasos numerados cuando explique procedimientos.
+3. NUNCA se refiera al usuario en tercera persona (no diga "el usuario", "la persona", "el cliente", etc.). Hable directamente: use "usted" o dé instrucciones impersonales sin mencionar quién las recibe.
 
-4. Use "usted" en todo momento. Tono formal y cordial.
+4. Sea directo y conciso — use pasos numerados cuando explique procedimientos.
 
-5. FORMATO WHATSAPP:
+5. Use "usted" en todo momento. Tono formal y cordial.
+
+6. FORMATO WHATSAPP:
    - Para NEGRITA use un solo asterisco: *texto*
    - NUNCA use doble asterisco (**), ni markdown avanzado (##, \`, etc.)
    - Separe párrafos con líneas en blanco
 
-6. Al final de CADA respuesta incluya siempre: "_Escriba *#* para hablar con un asesor_"
+7. Al final de CADA respuesta incluya siempre: "_Escriba *#* para hablar con un asesor_"
 
-7. ${nombre ? `Nombre del usuario: ${nombre}` : ""}`;
+8. ${nombre ? `Nombre del usuario: ${nombre}` : ""}`;
 }
 
 async function askClaude(userMessage, history, nombre, contexto, appActual) {

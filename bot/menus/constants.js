@@ -12,52 +12,26 @@ Un asesor de ATI le responderá en breve desde este número.
 
 Si desea, comparta más detalles o una captura de pantalla para agilizar la atención.`;
 
-// const MENU_OPCIONES_PREVEBSA = `Seleccione el detalle del problema en PREVEBSA:
-
-// 1️⃣ Problemas al ingresar / recuperar contraseña
-// 2️⃣ Problemas al crear o gestionar el plan diario
-// 3️⃣ Problemas al crear o gertionar Inspecciones preoperacionales
-// 4️⃣ Problemas al crear o gestionar observaciones
-// 5️⃣ Problemas al crear o gestionar Planes de Acción
-// 6️⃣ Problemas con el Módulo Proceso
-// 7️⃣ Problemas con configuración / modo offline
-// 8️⃣ Otro problema en PREVEBSA
-
-// Responda con el número para que el mensaje se genere automáticamente.`;
-
-// const MENU_OPCIONES_ATIPOP = `
-
-// 1️⃣ Problemas de inicio de sesión (SGA / FaceID)
-// 2️⃣ Mi Cuenta / Documentos / carnet
-// 3️⃣ Reporte en Ruta
-// 4️⃣ Supervisiones e Inspecciones
-// 5️⃣ Lecturas o equipos
-// 6️⃣ Sincronización de datos
-// 7️⃣ Configuración / GPS / alertas
-// 8️⃣ Otro problema en ATIPOP
-
-// Responda con el número para que el mensaje se genere automáticamente.`;
-
 const OPCIONES_PREVEBSA = {
-  1: "el usuario se encuentra ubicado en el login de la aplicacion",
-  2: "el usuario se encuentra ubicado en el modulo de plan diario (ft-ms-14 o 20)",
-  3: "",
-  4: "",
-  5: "",
-  6: "",
-  7: "",
-  8: "",
+  1: "Necesito ayuda con el inicio de sesión / contraseña",
+  2: "Necesito ayuda con el plan diario",
+  3: "Necesito ayuda con inspecciones preoperacionales",
+  4: "Necesito ayuda con observaciones",
+  5: "Necesito ayuda con planes de acción",
+  6: "Necesito ayuda con el módulo proceso",
+  7: "Necesito ayuda con configuración / modo offline",
+  8: "Otro problema en PREVEBSA",
 };
 
 const OPCIONES_ATIPOP = {
-  1: "",
-  2: "",
-  3: "",
-  4: "",
-  5: "",
-  6: "",
-  7: "",
-  8: "",
+  1: "Necesito ayuda con el inicio de sesión",
+  2: "Necesito ayuda con mi cuenta / documentos",
+  3: "Necesito ayuda con el reporte en ruta",
+  4: "Necesito ayuda con supervisiones e inspecciones",
+  5: "Necesito ayuda con lecturas / equipos",
+  6: "Necesito ayuda con sincronización",
+  7: "Necesito ayuda con configuración / GPS / alertas",
+  8: "Otro problema en ATIPOP",
 };
 
 const VIDEOS_PREVEBSA = {

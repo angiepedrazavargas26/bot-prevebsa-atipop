@@ -29,22 +29,22 @@ ERRORES TÍPICOS Y SOLUCIONES:
    - decirle que se conecte con un asesor para solucionar este problema en especifico.
 
 4. "FaceID / huella no funciona en PREVEBSA"
-   - PREVEBSA NO usa biometría. El usuario debe ingresar con usuario y contraseña.
+   - PREVEBSA NO usa biometría. Debe ingresar con usuario y contraseña.
    - Indicar que esta función no está disponible en PREVEBSA.
 
-REGLA CRÍTICA: Solo responda sobre Login/Contraseña de PREVEBSA. Si el usuario menciona otro módulo o ATIPOP, indique que debe escribir *#* para hablar con un asesor.`,
+REGLA CRÍTICA: Solo responda sobre Login/Contraseña de PREVEBSA. Si se consulta por otro módulo o ATIPOP, indique que debe escribir *#* para hablar con un asesor.`,
 
   prevebsa_2: `=== PLANIFICACIONES — PREVEBSA ===
 
 FUNCIONAMIENTO NORMAL:
 - PREVEBSA tiene 2 formatos de planificación: ft-ms-14 y ft-ms-20.
 - Se recomienda sincronizar la aplicacion antes de realizar el plan diario.
-- El usuario debe crear la planificación diaria antes de salir a campo.
+- Debe crear la planificación diaria antes de salir a campo.
 - Los datos se guardan automáticamente si la app está configurada correctamente.
 
 ERRORES TÍPICOS Y SOLUCIONES:
 1. "No puedo crear la planificación"
-   - puede cerrar sesion y borrar datos y cache de la aplicacion (explica como borrar cache y datos de una aplicacion, y en caso de que el usuario no pueda sugerirle seguir el tutorial dado en el menu).
+    - puede cerrar sesion y borrar datos y cache de la aplicacion (explica como borrar cache y datos de una aplicacion, y en caso que no pueda sugerirle seguir el tutorial dado en el menu).
    - Confirmar que la fecha sea la correcta (no se puede crear en fechas pasadas sin permiso).
 
 2. "Se perdieron los datos / no se guardó"
@@ -67,7 +67,7 @@ REGLA CRÍTICA: Solo responda sobre Planificaciones de PREVEBSA. No mencione ATI
 FUNCIONAMIENTO NORMAL:
 - Hay 4 formatos de inspección: VEHÍCULO, MOTO, EQUIPOS CRÍTICOS y HERRAMIENTAS Y EQUIPOS CRITICOS.
 - Las inspecciones se asignan desde el plan diario.
-- El usuario debe completar todos los campos obligatorios antes de guardar.
+- Debe completar todos los campos obligatorios antes de guardar.
 
 - Las fotos se adjuntan dentro del mismo formulario de inspección.
 
@@ -78,7 +78,7 @@ ERRORES TÍPICOS Y SOLUCIONES:
 
 2. "No se guardan las fotos de la inspección"
    - revisar conectividad si la conectividad es mala la imagen puede que no se suba.
-   - borrar cache y datos de la aplicacion (en caso de que el usuario no sepa darle una guia y en caso de que siga perdido darle la recomendacion de optener el tutorial del menu de tutoriales).
+    - borrar cache y datos de la aplicacion (en caso que no sepa darle una guia y en caso que siga perdido darle la recomendacion de optener el tutorial del menu de tutoriales).
 
 REGLA CRÍTICA: Solo responda sobre Inspecciones Preoperacionales de PREVEBSA. No mencione ATIPOP ni FaceID.`,
 
@@ -195,7 +195,7 @@ ERRORES TÍPICOS Y SOLUCIONES:
    - El administrador debe activar o desbloquear la cuenta desde el panel.
    - Si hay bloqueo por seguridad, esperar 15 minutos antes de reintentar.
 
-REGLA CRÍTICA: Solo responda sobre Inicio de Sesión de ATIPOP. Si el usuario menciona PREVEBSA, indique que escriba *#* para hablar con un asesor.`,
+REGLA CRÍTICA: Solo responda sobre Inicio de Sesión de ATIPOP. Si se consulta por PREVEBSA, indique que escriba *#* para hablar con un asesor.`,
 
   atipop_2: `=== MI CUENTA / DOCUMENTOS — ATIPOP ===
 
@@ -231,7 +231,7 @@ REGLA CRÍTICA: Solo responda sobre Mi Cuenta y Documentos de ATIPOP. No mencion
   atipop_3: `=== REPORTE EN RUTA — ATIPOP ===
 
 FUNCIONAMIENTO NORMAL:
-- El Reporte en Ruta registra la actividad diaria del usuario en campo.
+- El Reporte en Ruta registra la actividad diaria en campo.
 - Se debe crear un reporte por día con las actividades realizadas.
 - Incluye: horas de inicio y fin, ubicación GPS, novedades y evidencias.
 - El supervisor revisa y aprueba los reportes al final del día.
@@ -257,7 +257,7 @@ ERRORES TÍPICOS Y SOLUCIONES:
    - Verificar conexión a internet estable.
    - Si persiste, el supervisor puede revisar desde el panel web.
 
-REGLA CRÍTICA: Solo responda sobre Reporte en Ruta de ATIPOP. No mencione PREVEBSA ni FaceID a menos que el usuario lo indique explícitamente.`,
+REGLA CRÍTICA: Solo responda sobre Reporte en Ruta de ATIPOP. No mencione PREVEBSA ni FaceID a menos que se indique explícitamente.`,
 
   atipop_4: `=== SUPERVISIONES E INSPECCIONES — ATIPOP ===
 
@@ -357,7 +357,7 @@ REGLA CRÍTICA: Solo responda sobre Sincronización de ATIPOP. No mencione PREVE
 FUNCIONAMIENTO NORMAL:
 - Configuración incluye: GPS, vibración, notificaciones, modo offline y cuenta.
 - El GPS debe estar activado para registrar ubicación en reportes e inspecciones.
-- Las alertas GPS avisan si el usuario se aleja de la zona asignada.
+- Las alertas GPS avisan si se aleja de la zona asignada.
 - En modo offline, los datos se guardan localmente hasta sincronizar.
 
 ERRORES TÍPICOS Y SOLUCIONES:
@@ -389,7 +389,7 @@ REGLA CRÍTICA: Solo responda sobre Configuración, GPS y Alertas de ATIPOP. No 
 
 FUNCIONAMIENTO NORMAL:
 - Esta opción cubre inconvenientes no listados en los demás módulos de ATIPOP.
-- El usuario debe describir detalladamente el problema para poder asistirle.
+- Describa detalladamente el problema para poder asistirle.
 - Si el problema corresponde a otro módulo específico, se le indicará la sección correcta.
 
 ERRORES TÍPICOS Y SOLUCIONES:
