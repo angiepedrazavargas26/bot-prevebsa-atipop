@@ -19,6 +19,7 @@ const {
 const { notificarAgentes } = require("../services/agent");
 const { askClaude } = require("../services/claude");
 const {
+  NUMERO_NUEVOS_ERRORES,
   MENSAJE_AGENTE,
   CONTEXTOS,
   VIDEOS_PREVEBSA,
@@ -44,12 +45,13 @@ const frasesFallo = [
 ];
 
 async function reportarErrorNuevo(phone, descripcion, session) {
-  if (!NUMERO_ERRORES) return;
+  if (!NUMERO_ERRORES && !NUMERO_NUEVOS_ERRORES) return;
   const nombre = session.nombre || `+${phone}`;
   const app = session.app || "desconocido";
   const contexto = session.contexto || "general";
   const mensaje = `⚠️ *NUEVO TIPO DE ERROR DETECTADO*\n\n· Usuario: *${nombre}* (+${phone})\n· Aplicativo: ${app}\n· Módulo: ${contexto}\n· Descripción: ${descripcion}`;
-  await sendWhatsApp(NUMERO_ERRORES, mensaje);
+  if (NUMERO_ERRORES) await sendWhatsApp(NUMERO_ERRORES, mensaje);
+  if (NUMERO_NUEVOS_ERRORES) await sendWhatsApp(NUMERO_NUEVOS_ERRORES, mensaje);
 }
 
 function detectarNombre(text, session) {
