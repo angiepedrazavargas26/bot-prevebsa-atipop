@@ -184,13 +184,18 @@ async function sendMenuTutorialesPrevebsa(to) {
       },
       {
         id: "3",
+        title: "Cómo borrar caché",
+        description: "Eliminar datos y caché",
+      },
+      {
+        id: "4",
         title: "Inspecciones planeadas en PREVEBSA",
         description: "Crear inspecciones planeadas",
       },
       {
-        id: "4",
-        title: "Cómo borrar caché",
-        description: "Eliminar datos y caché",
+        id: "5",
+        title: "Inspecciones de vehiculos",
+        description: "crear inspecciones de un vehiculo",
       },
       { id: "0", title: "Volver", description: "Regresar al menú anterior" },
       {
